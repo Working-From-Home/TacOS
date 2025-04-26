@@ -28,7 +28,10 @@
 		"vscode": {
 			"settings": {
 				"terminal.integrated.defaultProfile.linux": "zsh"
-			}
+			},
+			"extensions": [
+				"rust-lang.rust-analyzer",
+			]
 		}
 	},
 
