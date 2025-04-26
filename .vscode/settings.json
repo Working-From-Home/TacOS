@@ -1,0 +1,9 @@
+{
+	"[shellscript][dockerbake][dockercompose][dockerfile][makefile]": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": false
+	},
+	"shellcheck.customArgs": [
+		"--external-sources"
+	],
+}

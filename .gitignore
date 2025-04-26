@@ -12,3 +12,17 @@ target/
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+
+# VSCode
+.vscode/*
+.history/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+!.vscode/java-formatter.xml
+!.vscode/*.code-snippets
+!.vscode/scripts/
+!.vscode/scripts/**/*
