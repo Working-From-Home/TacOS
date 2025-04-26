@@ -1,5 +1,8 @@
-[build]
-target = "i686-unknown-linux-gnu"
+[unstable]
+build-std = ["core"]
 
-[target.i686-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-nostartfiles"]
+[build]
+target = "target-specs/i686-custom.json"
+
+# [target.i686-custom]
+# rustflags = ["-C", "link-arg=-nostartfiles"]
