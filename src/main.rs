@@ -4,7 +4,7 @@
 mod klib;
 
 use core::panic::PanicInfo;
-use klib::string;
+use klib::vga;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -14,6 +14,6 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
     let msg = b"42\0";
-    string::putstr(msg.as_ptr());
+    vga::putstr(msg.as_ptr());
     loop {}
 }
