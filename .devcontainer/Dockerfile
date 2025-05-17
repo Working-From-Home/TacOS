@@ -10,4 +10,5 @@ RUN <<EOF
 	rm -rf /var/lib/apt/lists/*
 
 	rustup target add i686-unknown-linux-gnu
+	# rustup override set nightly-2025-05-10
 EOF
