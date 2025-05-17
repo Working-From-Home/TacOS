@@ -1,7 +1,10 @@
 #![no_std]
 #![no_main]
 
+mod klib;
+
 use core::panic::PanicInfo;
+use klib::string;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -10,15 +13,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
-    let hello = b"Hello World!";
-    let vga_buffer = 0xb8000 as *mut u8;
-
-    for (i, &byte) in hello.iter().enumerate() {
-        unsafe {
-            *vga_buffer.offset(i as isize * 2) = byte;
-            *vga_buffer.offset(i as isize * 2 + 1) = 0xb;
-        }
-    }
-
+    let msg = b"42\0";
+    string::putstr(msg.as_ptr());
     loop {}
 }
