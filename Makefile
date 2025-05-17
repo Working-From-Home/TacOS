@@ -47,4 +47,7 @@ run: iso
 .PHONY: clean
 clean:
 	rm -rf boot/boot.o iso/ kernel.elf tacos.iso
+
+.PHONY: fclean
+fclean: clean
 	cargo clean
