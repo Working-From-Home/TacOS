@@ -28,21 +28,28 @@ build: kernel.bin
 kernel:
 	cargo build --release
 
-.PHONY: boot
-boot:
-	as --32 boot/boot.s -o boot/boot.o
+.PHONY: boot-grub
+boot-grub:
+	as --32 boot/boot-grub.s -o boot/boot-grub.o
 
 .PHONY: link
-link: kernel boot
-	ld -m elf_i386 -Ttext 0x7c00 --oformat binary -o kernel.bin boot/boot.o target/i686-custom/release/libtacos.a
+link: kernel boot-grub
+	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot-grub.o target/i686-custom/release/tacos
 
-kernel.bin: link
+kernel.elf: link
+
+.PHONY: iso
+iso: kernel.elf
+	mkdir -p iso/boot/grub
+	cp kernel.elf iso/boot/kernel.bin
+	cp grub.cfg iso/boot/grub/grub.cfg
+	grub-mkrescue -o tacos.iso iso
 
 .PHONY: run
-run: kernel.bin
-	qemu-system-i386 -fda kernel.bin -display curses
+run: iso
+	qemu-system-i386 -cdrom tacos.iso -display curses
 
 .PHONY: clean
 clean:
-	rm -f boot/boot.o kernel.bin
+	rm -fr boot/boot.o iso/ kernel.elf tacos.iso
 	cargo clean
