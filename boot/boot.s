@@ -1,21 +1,16 @@
 .global _start
 
-# Multiboot header
 .section .multiboot
 .align 4
-.long 0x1BADB002              # magic number Multiboot
-.long 0x0                     # flags (0 = rien demandé à GRUB)
-.long -(0x1BADB002)            # checksum (magic + flags + checksum == 0)
+.long 0x1BADB002         # Magic Multiboot
+.long 0x0                # Flags (0 = rien demandé)
+.long -(0x1BADB002)      # Checksum
 
-# Code
 .section .text
 .align 4
 _start:
-    # Setup une stack simple
-    mov $stack_top, %esp
-
-    # Appelle main() de Rust
-    call _start
+    mov $stack_top, %esp   # Setup stack
+    call rust_main         # Appelle ta fonction Rust
 
 halt:
     cli
@@ -25,5 +20,5 @@ halt:
 .section .bss
 .align 16
 stack_bottom:
-    .skip 16384                # 16 KB stack
+    .skip 16384            # 16 KB stack
 stack_top:

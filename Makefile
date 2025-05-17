@@ -17,29 +17,24 @@ all: help
 help:
 	${ALL_HELP_INFO}
 
-.PHONY: setup
-post-create:
-	.devcontainer/scripts/post-create.sh
-
 .PHONY: build
-build: kernel.bin
+build:
+	cargo rustc --release --target target-specs/i686-custom.json -- --emit=obj
 
 .PHONY: kernel
 kernel:
 	cargo build --release
 
-.PHONY: boot-grub
-boot-grub:
-	as --32 boot/boot-grub.s -o boot/boot-grub.o
+.PHONY: boot
+boot:
+	as --32 boot/boot.s -o boot/boot.o
 
 .PHONY: link
-link: kernel boot-grub
-	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot-grub.o target/i686-custom/release/tacos
-
-kernel.elf: link
+link: build boot
+	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot.o target/i686-custom/release/deps/*.o
 
 .PHONY: iso
-iso: kernel.elf
+iso: link
 	mkdir -p iso/boot/grub
 	cp kernel.elf iso/boot/kernel.bin
 	cp grub.cfg iso/boot/grub/grub.cfg
@@ -51,5 +46,5 @@ run: iso
 
 .PHONY: clean
 clean:
-	rm -fr boot/boot.o iso/ kernel.elf tacos.iso
+	rm -rf boot/boot.o iso/ kernel.elf tacos.iso
 	cargo clean

@@ -9,7 +9,7 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn rust_main() -> ! {
     let hello = b"Hello World!";
     let vga_buffer = 0xb8000 as *mut u8;
 
