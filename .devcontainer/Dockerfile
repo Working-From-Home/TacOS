@@ -6,6 +6,9 @@ RUN <<EOF
 	apt-get install -y --no-install-recommends \
 		gcc-multilib \
 		libc6-dev-i386 \
+		qemu-system-i386 \
+		grub-pc-bin \
+		xorriso \
 	;
 	rm -rf /var/lib/apt/lists/*
 
