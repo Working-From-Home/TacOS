@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// Returns the length of a null-terminated string (C-style).
 pub fn strlen(s: *const u8) -> usize {
     let mut len = 0;

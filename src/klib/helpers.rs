@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub fn print_hex(byte: u8) {
     fn to_hex_char(n: u8) -> u8 {
         match n {
