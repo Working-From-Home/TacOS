@@ -1,8 +1,11 @@
 #![no_std]
 #![no_main]
 
+#![allow(dead_code)]    // temporary solution to avoid warnings for unused functions
+
 mod drivers;
 mod shell;
+mod ui;
 mod klib;
 
 use core::panic::PanicInfo;

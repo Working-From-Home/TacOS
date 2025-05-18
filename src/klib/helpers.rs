@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use crate::ui::display;
+
 pub fn print_hex(byte: u8) {
     fn to_hex_char(n: u8) -> u8 {
         match n {
@@ -11,9 +13,8 @@ pub fn print_hex(byte: u8) {
 
     let high = to_hex_char((byte >> 4) & 0x0F);
     let low = to_hex_char(byte & 0x0F);
-    unsafe {
-        crate::drivers::vga::putchar(high);
-        crate::drivers::vga::putchar(low);
-        crate::drivers::vga::putchar(b' ');
-    }
+
+    display::write_char(high);
+    display::write_char(low);
+    display::write_char(b' ');
 }
