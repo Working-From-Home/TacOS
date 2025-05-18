@@ -1,14 +1,11 @@
 #![no_std]
 #![no_main]
 
-mod klib;
-mod io;
 mod drivers;
+mod shell;
+mod klib;
 
 use core::panic::PanicInfo;
-
-use drivers::keyboard;
-use drivers::vga::vga;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -17,16 +14,5 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
-    vga::print_welcome();
-    
-    loop {
-        unsafe {
-            if let Some(scancode) = keyboard::read_scancode() {
-                let ascii = keyboard::scancode_to_ascii(scancode);
-                if let Some(c) = ascii {
-                    vga::putchar(c as u8);
-                }
-            }
-        }
-    }
+    crate::shell::run();
 }
