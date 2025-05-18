@@ -8,7 +8,7 @@ mod drivers;
 use core::panic::PanicInfo;
 
 use drivers::keyboard;
-use drivers::vga;
+use drivers::vga::vga;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -17,8 +17,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
-    let msg = b"42\0";
-    vga::putstr(msg.as_ptr());
+    vga::print_welcome();
     
     loop {
         unsafe {
