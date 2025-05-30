@@ -51,3 +51,15 @@ clean:
 .PHONY: fclean
 fclean: clean
 	cargo clean
+
+.PHONY: check-tools
+check-tools:
+	@command -v cargo >/dev/null 2>&1 || { echo >&2 "cargo is not installed. Aborting."; exit 1; }
+	@command -v as >/dev/null 2>&1 || { echo >&2 "GNU as is not installed. Aborting."; exit 1; }
+	@command -v ld >/dev/null 2>&1 || { echo >&2 "ld is not installed. Aborting."; exit 1; }
+	@command -v grub-mkrescue >/dev/null 2>&1 || { echo >&2 "grub-mkrescue is not installed. Aborting."; exit 1; }
+	@command -v qemu-system-i386 >/dev/null 2>&1 || { echo >&2 "qemu-system-i386 is not installed. Aborting."; exit 1; }
+
+.PHONY: setup-42-linux
+setup-42-linux:
+	@./setup-42-linux.sh
