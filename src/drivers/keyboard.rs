@@ -1,8 +1,23 @@
 use crate::drivers::port;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyEvent {
+    Char(char),
+    Enter,
+    Backspace,
+    Space,
+    Tab,
+    ArrowLeft,
+    ArrowRight,
+    //ArrowUp,
+    //ArrowDown,
+    Unknown,
+}
+
 static mut SHIFT_PRESSED: bool = false;
 
-pub fn get_char() -> Option<char> {
+/// Public API
+pub fn get_key_event() -> Option<KeyEvent> {
     if let Some(scancode) = read_scancode() {
         handle_scancode(scancode)
     } else {
@@ -10,7 +25,6 @@ pub fn get_char() -> Option<char> {
     }
 }
 
-/// Reads a scancode from the keyboard controller.
 #[inline(always)]
 fn read_scancode() -> Option<u8> {
     let status = port::inb(0x64);
@@ -21,42 +35,19 @@ fn read_scancode() -> Option<u8> {
     }
 }
 
-fn handle_scancode(scancode: u8) -> Option<char> {
+fn handle_scancode(scancode: u8) -> Option<KeyEvent> {
     match scancode {
-        0x1C => Some('\n'), // Enter
-        0x0E => Some('\x08'), // Backspace
         0x2A | 0x36 => { unsafe { SHIFT_PRESSED = true }; None },   // Shift press
         0xAA | 0xB6 => { unsafe { SHIFT_PRESSED = false }; None },  // Shift release
-        _=> { scancode_to_ascii(scancode) }
-    }
-}
-
-fn scancode_to_ascii(scancode: u8) -> Option<char> {
-    const MAP: [Option<char>; 128] = {
-        let mut m = [None; 128];
-        m[0x02] = Some('1'); m[0x03] = Some('2'); m[0x04] = Some('3');
-        m[0x05] = Some('4'); m[0x06] = Some('5'); m[0x07] = Some('6');
-        m[0x08] = Some('7'); m[0x09] = Some('8'); m[0x0A] = Some('9');
-        m[0x0B] = Some('0'); m[0x0C] = Some('-'); m[0x0D] = Some('=');
-        m[0x10] = Some('q'); m[0x11] = Some('w'); m[0x12] = Some('e');
-        m[0x13] = Some('r'); m[0x14] = Some('t'); m[0x15] = Some('y');
-        m[0x16] = Some('u'); m[0x17] = Some('i'); m[0x18] = Some('o');
-        m[0x19] = Some('p'); m[0x1E] = Some('a'); m[0x1F] = Some('s');
-        m[0x20] = Some('d'); m[0x21] = Some('f'); m[0x22] = Some('g');
-        m[0x23] = Some('h'); m[0x24] = Some('j'); m[0x25] = Some('k');
-        m[0x26] = Some('l'); m[0x2C] = Some('z'); m[0x2D] = Some('x');
-        m[0x2E] = Some('c'); m[0x2F] = Some('v'); m[0x30] = Some('b');
-        m[0x31] = Some('n'); m[0x32] = Some('m'); m[0x33] = Some(',');
-        m[0x34] = Some('.'); m[0x35] = Some('/'); m[0x39] = Some(' ');
-        m
-    };
-
-    let base = MAP.get(scancode as usize).copied().flatten();
-    unsafe {
-        if SHIFT_PRESSED {
-            base.map(shift_char)
-        } else {
-            base
+        _ => {
+            let map = unsafe {
+                if SHIFT_PRESSED {
+                    &SHIFTED_SCANCODE_MAP
+                } else {
+                    &SCANCODE_MAP
+                }
+            };
+            map.get(scancode as usize).copied().flatten()
         }
     }
 }
@@ -72,3 +63,86 @@ fn shift_char(c: char) -> char {
         c => c.to_ascii_uppercase(),
     }
 }
+
+/// Table de mapping scancode -> KeyEvent
+const SCANCODE_MAP: [Option<KeyEvent>; 128] = {
+    let mut map: [Option<KeyEvent>; 128] = [None; 128];
+
+    map[0x1C] = Some(KeyEvent::Enter);
+    map[0x0E] = Some(KeyEvent::Backspace);
+    map[0x39] = Some(KeyEvent::Space);
+    map[0x0F] = Some(KeyEvent::Tab);
+
+    map[0x4B] = Some(KeyEvent::ArrowLeft);
+    map[0x4D] = Some(KeyEvent::ArrowRight);
+    //map[0x48] = Some(KeyEvent::ArrowUp);
+    //map[0x50] = Some(KeyEvent::ArrowDown);
+
+    map[0x02] = Some(KeyEvent::Char('1')); map[0x03] = Some(KeyEvent::Char('2'));
+    map[0x04] = Some(KeyEvent::Char('3')); map[0x05] = Some(KeyEvent::Char('4'));
+    map[0x06] = Some(KeyEvent::Char('5')); map[0x07] = Some(KeyEvent::Char('6'));
+    map[0x08] = Some(KeyEvent::Char('7')); map[0x09] = Some(KeyEvent::Char('8'));
+    map[0x0A] = Some(KeyEvent::Char('9')); map[0x0B] = Some(KeyEvent::Char('0'));
+    map[0x0C] = Some(KeyEvent::Char('-')); map[0x0D] = Some(KeyEvent::Char('='));
+
+    map[0x10] = Some(KeyEvent::Char('q')); map[0x11] = Some(KeyEvent::Char('w'));
+    map[0x12] = Some(KeyEvent::Char('e')); map[0x13] = Some(KeyEvent::Char('r'));
+    map[0x14] = Some(KeyEvent::Char('t')); map[0x15] = Some(KeyEvent::Char('y'));
+    map[0x16] = Some(KeyEvent::Char('u')); map[0x17] = Some(KeyEvent::Char('i'));
+    map[0x18] = Some(KeyEvent::Char('o')); map[0x19] = Some(KeyEvent::Char('p'));
+
+    map[0x1E] = Some(KeyEvent::Char('a')); map[0x1F] = Some(KeyEvent::Char('s'));
+    map[0x20] = Some(KeyEvent::Char('d')); map[0x21] = Some(KeyEvent::Char('f'));
+    map[0x22] = Some(KeyEvent::Char('g')); map[0x23] = Some(KeyEvent::Char('h'));
+    map[0x24] = Some(KeyEvent::Char('j')); map[0x25] = Some(KeyEvent::Char('k'));
+    map[0x26] = Some(KeyEvent::Char('l'));
+
+    map[0x2C] = Some(KeyEvent::Char('z')); map[0x2D] = Some(KeyEvent::Char('x'));
+    map[0x2E] = Some(KeyEvent::Char('c')); map[0x2F] = Some(KeyEvent::Char('v'));
+    map[0x30] = Some(KeyEvent::Char('b')); map[0x31] = Some(KeyEvent::Char('n'));
+    map[0x32] = Some(KeyEvent::Char('m')); map[0x33] = Some(KeyEvent::Char(','));
+    map[0x34] = Some(KeyEvent::Char('.')); map[0x35] = Some(KeyEvent::Char('/'));
+
+    map
+};
+
+const SHIFTED_SCANCODE_MAP: [Option<KeyEvent>; 128] = {
+    let mut map: [Option<KeyEvent>; 128] = [None; 128];
+
+    map[0x02] = Some(KeyEvent::Char('!')); map[0x03] = Some(KeyEvent::Char('@'));
+    map[0x04] = Some(KeyEvent::Char('#')); map[0x05] = Some(KeyEvent::Char('$'));
+    map[0x06] = Some(KeyEvent::Char('%')); map[0x07] = Some(KeyEvent::Char('^'));
+    map[0x08] = Some(KeyEvent::Char('&')); map[0x09] = Some(KeyEvent::Char('*'));
+    
+    map[0x0A] = Some(KeyEvent::Char('(')); map[0x0B] = Some(KeyEvent::Char(')'));
+    map[0x0C] = Some(KeyEvent::Char('_')); map[0x0D] = Some(KeyEvent::Char('+'));
+    map[0x0E] = Some(KeyEvent::Backspace); map[0x0F] = Some(KeyEvent::Char('\t'));
+    
+    map[0x10] = Some(KeyEvent::Char('Q')); map[0x11] = Some(KeyEvent::Char('W'));
+    map[0x12] = Some(KeyEvent::Char('E')); map[0x13] = Some(KeyEvent::Char('R'));
+    map[0x14] = Some(KeyEvent::Char('T')); map[0x15] = Some(KeyEvent::Char('Y'));
+    map[0x16] = Some(KeyEvent::Char('U')); map[0x17] = Some(KeyEvent::Char('I'));
+    map[0x18] = Some(KeyEvent::Char('O')); map[0x19] = Some(KeyEvent::Char('P'));
+    
+    map[0x1A] = Some(KeyEvent::Char('{')); map[0x1B] = Some(KeyEvent::Char('}'));
+    map[0x1C] = Some(KeyEvent::Enter);
+
+    map[0x1E] = Some(KeyEvent::Char('A')); map[0x1F] = Some(KeyEvent::Char('S'));
+    map[0x20] = Some(KeyEvent::Char('D')); map[0x21] = Some(KeyEvent::Char('F'));
+    map[0x22] = Some(KeyEvent::Char('G')); map[0x23] = Some(KeyEvent::Char('H'));
+    map[0x24] = Some(KeyEvent::Char('J')); map[0x25] = Some(KeyEvent::Char('K'));
+    map[0x26] = Some(KeyEvent::Char('L')); map[0x27] = Some(KeyEvent::Char(':'));
+    map[0x28] = Some(KeyEvent::Char('"')); map[0x29] = Some(KeyEvent::Char('~'));
+    
+    map[0x2C] = Some(KeyEvent::Char('Z')); map[0x2D] = Some(KeyEvent::Char('X'));
+    map[0x2E] = Some(KeyEvent::Char('C')); map[0x2F] = Some(KeyEvent::Char('V'));
+    map[0x30] = Some(KeyEvent::Char('B')); map[0x31] = Some(KeyEvent::Char('N'));
+    map[0x32] = Some(KeyEvent::Char('M')); map[0x33] = Some(KeyEvent::Char('<'));
+    map[0x34] = Some(KeyEvent::Char('>')); map[0x35] = Some(KeyEvent::Char('?'));
+    
+    map[0x39] = Some(KeyEvent::Char(' '));
+    map[0x4B] = Some(KeyEvent::ArrowLeft);
+    map[0x4D] = Some(KeyEvent::ArrowRight);
+
+    map
+};

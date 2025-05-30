@@ -17,17 +17,7 @@ pub fn set_pos(x: usize, y: usize) {
     }
 }
 
-pub fn move_right() {
-    unsafe {
-        CURSOR_X += 1;
-        if CURSOR_X >= vga::VGA_WIDTH {
-            CURSOR_X = 0;
-            CURSOR_Y = (CURSOR_Y + 1).min(vga::VGA_HEIGHT - 1);
-        }
-    }
-    sync_to_hardware();
-}
-
+/// Moves the cursor to the left. If it reaches the beginning of the line, it wraps to the previous line.
 pub fn move_left() {
     unsafe {
         if CURSOR_X > 0 {
@@ -35,6 +25,18 @@ pub fn move_left() {
         } else if CURSOR_Y > 0 {
             CURSOR_Y -= 1;
             CURSOR_X = vga::VGA_WIDTH - 1;
+        }
+    }
+    sync_to_hardware();
+}
+
+/// Moves the cursor to the right. If it reaches the end of the line, it wraps to the next line.
+pub fn move_right() {
+    unsafe {
+        CURSOR_X += 1;
+        if CURSOR_X >= vga::VGA_WIDTH {
+            CURSOR_X = 0;
+            CURSOR_Y = (CURSOR_Y + 1).min(vga::VGA_HEIGHT - 1);
         }
     }
     sync_to_hardware();
@@ -53,6 +55,7 @@ pub fn new_line() {
     sync_to_hardware();
 }
 
+/// Synchronizes the cursor position with the hardware.
 fn sync_to_hardware() {
     let (x, y) = get_pos();
     vga::update_cursor(x, y);

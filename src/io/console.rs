@@ -1,4 +1,4 @@
-use crate::ui::{cursor, display, input};
+use crate::io::{cursor, display};
 use crate::drivers::vga;
 use crate::klib::string;
 
@@ -37,13 +37,16 @@ pub fn show_welcome_message() {
 
 pub fn show_prompt() {
     let color = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
-    let prompt = b">>> ";
+    let prompt = b"$ ";
     for &c in prompt {
         display::write_colored_char(c, color);
         cursor::move_right();
     }
     //input::set_start_position(cursor::get_pos());
 }
+
+// temporary. need to find a better way to handle this
+pub const PROMPT_LEN: usize = 2; // "$ "
 
 pub fn show_error(msg: &str) {
     let color: u8 = vga::get_color_code(vga::Color::Red, vga::Color::Black);

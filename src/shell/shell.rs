@@ -1,5 +1,5 @@
-use crate::drivers::{keyboard, vga};
-use crate::ui::{console, cursor, input, display};
+use crate::drivers::keyboard;
+use crate::io::{io_manager, console};
 
 pub fn run() -> ! {
 
@@ -7,37 +7,26 @@ pub fn run() -> ! {
     console::show_prompt();
 
     loop {
-        if let Some(c) = keyboard::get_char() {
-            match c {
-                '\n' => handle_enter(),
-                '\x08' | '\x7f' => input::remove_char(), // backspace or delete
-                '\x1b' => {
-                    // handle escape sequences
-                    if let Some(next_c) = keyboard::get_char() {
-                        match next_c {
-                            'D' => handle_left(),  // left arrow
-                            'C' => handle_right(), // right arrow
-                            _ => {}
-                        }
-                    }
-                }
-                c =>  input::insert_char(c as u8),
-            }
+        if let Some(event) = keyboard::get_key_event() {
+            io_manager::handle_key_event(event);
+
+            // match key {
+            //     KeyEvent::Char(c) =>input_buffer::insert_char(c as u8),
+            //     KeyEvent::Enter => {
+            //         let cmd: *const u8 = input_buffer::handle_enter();
+            //         // process_command(cmd);
+
+            //         console::write_colored_line(cmd, vga::get_color_code(vga::Color::Green, vga::Color::Black));
+
+            //         console::show_prompt();
+            //     },
+            //     KeyEvent::Backspace => input_buffer::remove_char(),
+            //     KeyEvent::Space => input_buffer::insert_char(b' '),
+            //     KeyEvent::Tab => input_buffer::insert_char(b'\t'),
+            //     KeyEvent::ArrowLeft => input_buffer::handle_left(),
+            //     KeyEvent::ArrowRight => input_buffer::handle_right(),
+            //     KeyEvent::Unknown => {}
+            // }
         }
     }
-}
-
-fn handle_left() {
-    cursor::move_left();
-}
-
-fn handle_right() {
-    cursor::move_right();
-}
-
-fn handle_enter() {
-    cursor::new_line();
-    // TODO: implement command processing
-    input::clear();
-    console::show_prompt();
 }

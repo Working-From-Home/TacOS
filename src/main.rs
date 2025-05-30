@@ -5,7 +5,7 @@
 
 mod drivers;
 mod shell;
-mod ui;
+mod io;
 mod klib;
 
 use core::panic::PanicInfo;
