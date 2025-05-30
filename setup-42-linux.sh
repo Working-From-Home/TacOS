@@ -169,7 +169,8 @@ install_grub_pc() {
 			tar xf "/tmp/grub.tar.xz"
 			cd "grub-${grub_version}"
 			./autogen.sh
-			./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc #--disable-werror
+			./configure --prefix=${HOME}/.kfs/.grub --disable-werror --disable-dependency-tracking # https://drlm-docs.readthedocs.io/en/latest/building_grub2.html
+			# ./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc #--disable-werror
 			make -j$(nproc)
 			make install
 		)
