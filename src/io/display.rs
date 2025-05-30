@@ -23,19 +23,13 @@ pub fn write_colored_char_at(c: u8, color: u8, x: usize, y: usize) {
     draw_char_at(x, y, c, color);
 }
 
-/// Refreshes the display after an insert operation.
-pub fn refresh_after_insert(buffer: &[u8], len: usize, start_pos: usize, cursor_y: usize) {
+/// Prints a line of text from the buffer to the VGA buffer at 0xb8000.
+pub fn write_buffer_line(buffer: &[u8], len: usize, start_pos: usize, cursor_y: usize, clear_tail_len: usize) {
     for i in start_pos..len.min(buffer.len()) {
         let c = buffer[i];
         write_char_at(c, i, cursor_y);
     }
-}
-
-/// Refreshes the display after a delete operation.
-pub fn refresh_after_delete(buffer: &[u8], len: usize, start_pos: usize, cursor_y: usize) {
-    for i in start_pos..len.min(buffer.len()) {
-        let c = buffer[i];
-        write_char_at(c, i, cursor_y);
+    for i in 0..clear_tail_len {
+        write_char_at(b' ', len + i, cursor_y);
     }
-    write_char_at(b' ', len, cursor_y);
 }

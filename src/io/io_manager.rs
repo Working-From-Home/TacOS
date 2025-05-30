@@ -16,35 +16,26 @@ fn handle_insert(c: char) {
     if input_buffer::insert_char(c as u8) {
         let buffer = input_buffer::get_buffer();
         let len = input_buffer::get_len();
-        //let (start_pos, cursor_y) = cursor::get_pos();
         let start_pos = input_buffer::get_pos() - 1;
         let cursor_y = cursor::get_pos().1;
-        display::refresh_after_insert(buffer, len, start_pos, cursor_y);
+        display::write_buffer_line(buffer, len, start_pos, cursor_y, 0);
         cursor::move_right();
     }
 }
 
 fn handle_delete() {
     if input_buffer::remove_char() {
-
         let buffer = input_buffer::get_buffer();
         let len = input_buffer::get_len();
-        //let (start_pos, cursor_y) = cursor::get_pos();
         let start_pos = input_buffer::get_pos() - 1;
         let cursor_y = cursor::get_pos().1;
-        display::refresh_after_delete(buffer, len, start_pos, cursor_y);
+        display::write_buffer_line(buffer, len, start_pos, cursor_y, 1);
         cursor::move_left();
     }
 }
 
 fn handle_enter() {
     let _command = input_buffer::flush();
-    
-    // tmp
-    for byte in _command {
-        display::write_char(*byte);
-    }
-
     //crate::shell::handle_command(command); TODO
     cursor::new_line();
     console::show_prompt();

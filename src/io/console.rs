@@ -42,7 +42,6 @@ pub fn show_prompt() {
         display::write_colored_char(c, color);
         cursor::move_right();
     }
-    //input::set_start_position(cursor::get_pos());
 }
 
 // temporary. need to find a better way to handle this
