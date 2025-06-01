@@ -168,10 +168,12 @@ install_grub_pc() {
 			cd /tmp
 			tar xf "/tmp/grub.tar.xz"
 			cd "grub-${grub_version}"
+			echo depends bli part_gpt > grub-core/extra_deps.lst
 			./autogen.sh
-			./configure --prefix=${HOME}/.kfs/.grub --disable-werror --disable-dependency-tracking # https://drlm-docs.readthedocs.io/en/latest/building_grub2.html
+			./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc --disable-werror --disable-dependency-tracking --disable-efiemu # https://drlm-docs.readthedocs.io/en/latest/building_grub2.html
 			# ./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc #--disable-werror
-			make -j$(nproc)
+			unset {C,CPP,CXX,LD}FLAGS
+			make
 			make install
 		)
 		rm -rf "/tmp/grub-${grub_version}" "/tmp/grub.tar.xz"
@@ -204,3 +206,9 @@ main(){
 }
 
 main "$@"
+
+# TODO if error happen
+#     mawk: ./genmoddep.awk: line 110: function asorti never defined
+#     make[3]: *** [Makefile:49030: moddep.lst] Error 1
+# Please make sure gawk is available and used by default for awk.
+#  https://lists.buildroot.org/pipermail/buildroot/2023-December/366838.html
