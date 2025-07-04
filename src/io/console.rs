@@ -24,11 +24,11 @@ pub fn write_colored_line(s: *const u8, color: u8) {
 pub fn show_welcome_message() {
     let c = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
 
-    write_colored_line(b"_/_/_/_/_/                      _/_/      _/_/_/      _/\0".as_ptr(), c);
-    write_colored_line(b"   _/      _/_/_/    _/_/_/  _/    _/  _/            _/\0".as_ptr(), c);
-    write_colored_line(b"  _/    _/    _/  _/        _/    _/    _/_/        _/\0".as_ptr(), c);
-    write_colored_line(b" _/    _/    _/  _/        _/    _/        _/\0".as_ptr(), c);
-    write_colored_line(b"_/      _/_/_/    _/_/_/    _/_/    _/_/_/        _/\0".as_ptr(), c);
+    write_colored_line(b"_/_/_/_/_/                      _/_/      _/_/_/      _/      _  _  ____  \0".as_ptr(), c);
+    write_colored_line(b"   _/      _/_/_/    _/_/_/  _/    _/  _/            _/      | || ||___  |\0".as_ptr(), c);
+    write_colored_line(b"  _/    _/    _/  _/        _/    _/    _/_/        _/       | || |_ __) |\0".as_ptr(), c);
+    write_colored_line(b" _/    _/    _/  _/        _/    _/        _/                |__   _/ __/ \0".as_ptr(), c);
+    write_colored_line(b"_/      _/_/_/    _/_/_/    _/_/    _/_/_/        _/            |_||_____|\0".as_ptr(), c);
 
     cursor::new_line();
     cursor::new_line();
