@@ -171,7 +171,7 @@ install_grub_pc() {
 			echo depends bli part_gpt > grub-core/extra_deps.lst
 			./autogen.sh
 			./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc --disable-werror --disable-dependency-tracking --disable-efiemu # https://drlm-docs.readthedocs.io/en/latest/building_grub2.html
-			# ./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc #--disable-werror
+			# ./configure --prefix=${HOME}/.kfs/.grub --with-platform=pc --disable-werror --disable-efiemu #
 			unset {C,CPP,CXX,LD}FLAGS
 			make
 			make install

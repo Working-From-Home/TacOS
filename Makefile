@@ -8,6 +8,17 @@ define ALL_HELP_INFO
 # 
 #   post-create              # run the post-create.sh of the devcontainer
 #   build                    # build TacOS
+#   kernel                   # build the kernel
+#   boot                     # assemble the bootloader
+#   link                     # link the kernel and bootloader
+#   iso                      # create an ISO image of the kernel
+#   run                      # run the kernel in QEMU
+#   clean                    # clean build artifacts
+#   fclean                   # clean build artifacts and cargo cache
+#   check-tools              # check if all required tools are installed
+#   setup-42-linux           # setup the 42 Linux environment (compile and install everything fine...except grub-pc still missing)
+#   vm-42-start              # start the Vagrant VM
+#   vm-42-delete             # delete the Vagrant VM
 endef
 
 .PHONY: all
@@ -63,3 +74,12 @@ check-tools:
 .PHONY: setup-42-linux
 setup-42-linux:
 	@./setup-42-linux.sh
+
+vm-42-start:
+	@VBoxManage list systemproperties | grep "Default machine folder:"
+	@vboxmanage setproperty machinefolder ~/sgoinfre
+	@VBoxManage list systemproperties | grep "Default machine folder:"
+	@vagrant up
+
+vm-42-delete:
+	@vagrant destroy -f
