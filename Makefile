@@ -22,7 +22,7 @@ define ALL_HELP_INFO
 endef
 
 .PHONY: all
-all: help
+all: iso
 
 .PHONY: help
 help:
@@ -76,8 +76,9 @@ setup-42-linux:
 	@./setup-42-linux.sh
 
 vm-42-start:
+# @vboxmanage setproperty machinefolder ~/sgoinfre
 	@VBoxManage list systemproperties | grep "Default machine folder:"
-	@vboxmanage setproperty machinefolder ~/sgoinfre
+	@vboxmanage setproperty machinefolder ~/goinfre
 	@VBoxManage list systemproperties | grep "Default machine folder:"
 	@vagrant up
 
