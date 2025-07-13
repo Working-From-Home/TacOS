@@ -35,9 +35,9 @@ fn handle_delete() {
 }
 
 fn handle_enter() {
-    let _command = input_buffer::flush();
-    //crate::shell::handle_command(command); TODO
+    let command = input_buffer::flush();
     cursor::new_line();
+    crate::shell::handle_command(command);
     console::show_prompt();
 }
 

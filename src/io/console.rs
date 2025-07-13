@@ -2,9 +2,17 @@ use crate::io::{cursor, display};
 use crate::drivers::vga;
 use crate::klib::string;
 
-pub fn write_line(s: &str) {
-    for byte in s.bytes() {
-        display::write_char(byte);
+pub fn write_line(s: *const u8) {
+    let len = string::strlen(s);
+
+    let color = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
+
+    for i in 0..len {
+        unsafe {
+            let c = *s.add(i);
+            display::write_colored_char(c, color);
+            cursor::move_right();
+        }
     }
     cursor::new_line();
 }
@@ -24,11 +32,11 @@ pub fn write_colored_line(s: *const u8, color: u8) {
 pub fn show_welcome_message() {
     let c = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
 
-    write_colored_line(b"_/_/_/_/_/                      _/_/      _/_/_/      _/      _  _  ____  \0".as_ptr(), c);
-    write_colored_line(b"   _/      _/_/_/    _/_/_/  _/    _/  _/            _/      | || ||___  |\0".as_ptr(), c);
-    write_colored_line(b"  _/    _/    _/  _/        _/    _/    _/_/        _/       | || |_ __) |\0".as_ptr(), c);
-    write_colored_line(b" _/    _/    _/  _/        _/    _/        _/                |__   _/ __/ \0".as_ptr(), c);
-    write_colored_line(b"_/      _/_/_/    _/_/_/    _/_/    _/_/_/        _/            |_||_____|\0".as_ptr(), c);
+    write_colored_line(b"  _/  _/      _/_/      _/_/_/_/_/                      _/_/      _/_/_/    _/\0".as_ptr(), c);   
+    write_colored_line(b" _/  _/    _/    _/        _/      _/_/_/    _/_/_/  _/    _/  _/          _/ \0".as_ptr(), c);   
+    write_colored_line(b"_/_/_/_/      _/          _/    _/    _/  _/        _/    _/    _/_/      _/  \0".as_ptr(), c);   
+    write_colored_line(b"   _/      _/            _/    _/    _/  _/        _/    _/        _/         \0".as_ptr(), c);   
+    write_colored_line(b"  _/    _/_/_/_/        _/      _/_/_/    _/_/_/    _/_/    _/_/_/      _/    \0".as_ptr(), c);   
 
     cursor::new_line();
     cursor::new_line();

@@ -197,11 +197,11 @@ main(){
 	fi
 	echo "Setting up 42 Linux environment..."
 	install_rustup
-	install_mtools
-	export PATH="${HOME}/.kfs/bin:$PATH"
-	grep -qxF 'export PATH="${HOME}/.kfs/bin:$PATH"' "${HOME}/.zshrc" || echo 'export PATH="${HOME}/.kfs/bin:$PATH"' >> "${HOME}/.zshrc"
-	grep -qxF 'export PATH="${HOME}/.kfs/bin:$PATH"' "${HOME}/.bashrc" || echo 'export PATH="${HOME}/.kfs/bin:$PATH"' >> "${HOME}/.bashrc"
-	install_grub_pc
+	# install_mtools
+	# export PATH="${HOME}/.kfs/bin:$PATH"
+	# grep -qxF 'export PATH="${HOME}/.kfs/bin:$PATH"' "${HOME}/.zshrc" || echo 'export PATH="${HOME}/.kfs/bin:$PATH"' >> "${HOME}/.zshrc"
+	# grep -qxF 'export PATH="${HOME}/.kfs/bin:$PATH"' "${HOME}/.bashrc" || echo 'export PATH="${HOME}/.kfs/bin:$PATH"' >> "${HOME}/.bashrc"
+	# install_grub_pc
 	rustup component add rust-src
 }
 

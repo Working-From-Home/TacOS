@@ -1,5 +1,3 @@
-/// ![Port I/O](https://en.wikipedia.org/wiki/Port_(computer_architecture))
-
 use core::arch::asm;
 
 pub fn inb(port: u16) -> u8 {

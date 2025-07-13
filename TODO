@@ -14,7 +14,7 @@ call main function of the kernel itself.
 - [x] After compilation all objects must be linked together to create the Kernel bin
 
 Bonus 
-- [ ] Add scroll and cursor support to your I/O interface.
+- [x] Add scroll and cursor support to your I/O interface.
 - [x] Add colors support to your I/O interface.
 - [ ] Add helpers like printf / printk in order to print information / debug easily.
     - Note add dmesg to print klogs, and reuse vsprintf written in c for printk 

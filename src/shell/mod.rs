@@ -1,2 +1,2 @@
 pub mod shell;
-pub use shell::run;
+pub use shell::{handle_command, run};

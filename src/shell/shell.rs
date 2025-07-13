@@ -1,32 +1,61 @@
 use crate::drivers::keyboard;
+use crate::drivers::port::outb;
 use crate::io::{io_manager, console};
+use crate::drivers::vga;
+use crate::klib::string::strcat;
+use core::arch::asm;
 
 pub fn run() -> ! {
-
     console::show_welcome_message();
     console::show_prompt();
 
     loop {
         if let Some(event) = keyboard::get_key_event() {
             io_manager::handle_key_event(event);
-
-            // match key {
-            //     KeyEvent::Char(c) =>input_buffer::insert_char(c as u8),
-            //     KeyEvent::Enter => {
-            //         let cmd: *const u8 = input_buffer::handle_enter();
-            //         // process_command(cmd);
-
-            //         console::write_colored_line(cmd, vga::get_color_code(vga::Color::Green, vga::Color::Black));
-
-            //         console::show_prompt();
-            //     },
-            //     KeyEvent::Backspace => input_buffer::remove_char(),
-            //     KeyEvent::Space => input_buffer::insert_char(b' '),
-            //     KeyEvent::Tab => input_buffer::insert_char(b'\t'),
-            //     KeyEvent::ArrowLeft => input_buffer::handle_left(),
-            //     KeyEvent::ArrowRight => input_buffer::handle_right(),
-            //     KeyEvent::Unknown => {}
-            // }
         }
+    }
+}
+
+pub fn handle_command(command: &'static [u8]) {
+    if command.is_empty() {
+        return;
+    }
+    match command {
+        b"help" => {
+            console::write_line(b"Available commands: help, tacos, shutdown\0".as_ptr());
+        }
+        b"shutdown" => {
+            shutdown();
+        }
+        b"tacos" => {
+            tacos();
+        }
+        _ => {
+            // unknown command case
+            let mut buf = [0u8; 128];
+            strcat(buf.as_mut_ptr(), b"Command not found: ".as_ptr());
+            strcat(buf.as_mut_ptr(), command.as_ptr());
+            let c = vga::get_color_code(vga::Color::Red, vga::Color::Black);
+            console::write_colored_line(buf.as_ptr(), c);
+        }
+    }
+}
+
+fn tacos() {
+    static mut tacos_counter: u8 = 0;
+    unsafe {
+        tacos_counter += 1;
+    } 
+    match unsafe {tacos_counter} {
+        21 => console::write_line(b"Still loving those tacos!\0".as_ptr()),
+        42 => console::write_line(b"Why are you still here? Go eat tacos!\0".as_ptr()),
+        _ => console::write_line(b"Yum! Tacos are delicious!\0".as_ptr()),
+    }
+}
+
+fn shutdown() {
+    outb(0xF4, 0x00);
+    loop {
+        unsafe { asm!("hlt"); }
     }
 }

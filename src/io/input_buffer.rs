@@ -22,9 +22,6 @@ impl InputBuffer {
         }
 
         // Shift the buffer to the right from the end to the current position
-        // for i in (self.pos..self.len).rev() {
-        //     self.buffer[i + 1] = self.buffer[i];
-        // }
         let mut i = self.len;
         while i > self.pos {
             unsafe {
@@ -52,11 +49,6 @@ impl InputBuffer {
         self.pos -= 1;
 
         // Move the rest of the buffer to the left
-        // let mut i = self.pos;
-        // while i + 1 < self.len {
-        //     self.buffer[i] = self.buffer[i + 1];
-        //     i += 1;
-        // }
         let mut i = self.pos;
         while i + 1 < self.len {
             unsafe {
