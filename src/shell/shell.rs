@@ -32,11 +32,7 @@ pub fn handle_command(command: &'static [u8]) {
         }
         _ => {
             // unknown command case
-            let mut buf = [0u8; 128];
-            strcat(buf.as_mut_ptr(), b"Command not found: ".as_ptr());
-            strcat(buf.as_mut_ptr(), command.as_ptr());
-            let c = vga::get_color_code(vga::Color::Red, vga::Color::Black);
-            console::write_colored_line(buf.as_ptr(), c);
+            console::show_error("Command not found\0");
         }
     }
 }

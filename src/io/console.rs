@@ -57,10 +57,5 @@ pub const PROMPT_LEN: usize = 2; // "$ "
 
 pub fn show_error(msg: &str) {
     let color: u8 = vga::get_color_code(vga::Color::Red, vga::Color::Black);
-    for &c in msg.as_bytes() {
-        display::write_colored_char(c, color);
-        cursor::move_right();
-    }
-    display::write_char(b'\n');
-    cursor::new_line();
+    write_colored_line(msg.as_ptr(), color);
 }

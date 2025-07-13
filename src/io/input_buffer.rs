@@ -1,4 +1,4 @@
-const BUFFER_SIZE: usize = 128;
+const BUFFER_SIZE: usize = 78;
 
 pub struct InputBuffer {
     pub buffer: [u8; BUFFER_SIZE],
