@@ -5,8 +5,7 @@ call main function of the kernel itself.
 - [x] Write basic kernel code of the choosen language.
 - [x] Compile it with correct flags, and link it to make it bootable
 - [x] Write some helpers like kernel types or basic functions (strlen, strcmp, ...)
-- [ ] Your work must not exceed 10 MB.
-    - current size: `du -h tacos.iso` --> `7.9M    tacos.iso`
+- [x] Your work must not exceed 10 MB.
 - [x] Code the interface between your kernel and the screen.
 - [x] Display "42" on the screen
 
