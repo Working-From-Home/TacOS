@@ -84,3 +84,5 @@ vm-42-start:
 
 vm-42-delete:
 	@vagrant destroy -f
+	rm -rf ./vagrant/
+
