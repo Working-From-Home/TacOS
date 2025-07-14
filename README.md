@@ -9,5 +9,6 @@
 
 TODO, resources for printf/printk (try reimplement format function (rust macro)
 - https://stackoverflow.com/questions/74167138/how-to-write-a-function-that-accepts-an-argument-similar-to-format-in-rust
+- https://doc.rust-lang.org/std/macro.format.html
 - https://www.youtube.com/watch?v=PO5w0UubFXQ
 - https://www.youtube.com/watch?v=PO5w0UubFXQ
