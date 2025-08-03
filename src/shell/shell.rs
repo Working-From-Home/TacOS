@@ -5,6 +5,13 @@ use crate::drivers::vga;
 use crate::klib::string::strcat;
 use core::arch::asm;
 
+macro_rules! give_six {
+    () => {
+        6
+    };
+    
+}
+
 pub fn run() -> ! {
     console::show_welcome_message();
     console::show_prompt();
@@ -26,6 +33,13 @@ pub fn handle_command(command: &'static [u8]) {
         }
         b"shutdown" => {
             shutdown();
+        }
+        b"six" => {
+            let six = give_six!();
+            // in kernel, use our own itoa to convert integer to string
+            let mut buffer = [0u8; 64];
+            let message = u8_itoa(six, &mut buffer);
+            console::write_line(message.as_ptr());
         }
         b"tacos" => {
             tacos();
@@ -54,4 +68,27 @@ fn shutdown() {
     loop {
         unsafe { asm!("hlt"); }
     }
+}
+
+// Simple integer to string conversion for u8
+fn u8_itoa(mut num: u8, buffer: &mut [u8]) -> & [u8] {
+    let mut i = 0;
+    if num == 0 {
+        buffer[0] = b'0';
+        buffer[1] = 0;
+        return &buffer[..2];
+    }
+    while num > 0 {
+        buffer[i] = b'0' + (num % 10);
+        num /= 10;
+        i += 1;
+    }
+    // Reverse the digits
+    for j in 0..i/2 {
+        let tmp = buffer[j];
+        buffer[j] = buffer[i - j - 1];
+        buffer[i - j - 1] = tmp;
+    }
+    buffer[i] = 0;
+    &buffer[..i+1]
 }
