@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(trace_macros)]
 
 #![allow(dead_code)]    // temporary solution to avoid warnings for unused functions
 

@@ -35,7 +35,9 @@ pub fn handle_command(command: &'static [u8]) {
             shutdown();
         }
         b"six" => {
+            trace_macros!(true);
             let six = give_six!();
+            trace_macros!(false);
             // in kernel, use our own itoa to convert integer to string
             let mut buffer = [0u8; 64];
             let message = u8_itoa(six, &mut buffer);
