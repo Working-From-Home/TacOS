@@ -28,6 +28,7 @@ static COMMANDS: &[Command] = &[
     Command { name: b"tacos",    handler: tacos },
     Command { name: b"shutdown", handler: shutdown },
     Command { name: b"halt",     handler: shutdown },
+    Command { name: b"reboot",   handler: reboot },
     Command { name: b"printk",   handler: printk_test },
     Command { name: b"stack",    handler: crate::klib::stack::print_stack },
     Command { name: b"gdt",      handler: crate::gdt::print_gdt },
@@ -232,6 +233,26 @@ fn printk_test(_args: &[u8]) {
 
 fn shutdown(_args: &[u8]) {
     outb(0xF4, 0x00);
+    loop {
+        unsafe {
+            asm!("hlt");
+        }
+    }
+}
+
+fn reboot(_args: &[u8]) {
+    printkln!("Rebooting...");
+    // Send reset command (0xFE) to the keyboard controller (port 0x64)
+    // This triggers a CPU reset on real hardware and in QEMU
+    unsafe {
+        // Wait for the keyboard controller input buffer to be empty
+        let mut status = crate::drivers::port::inb(0x64);
+        while status & 0x02 != 0 {
+            status = crate::drivers::port::inb(0x64);
+        }
+    }
+    outb(0x64, 0xFE);
+    // If the above didn't work, triple-fault by loading a null IDT and interrupting
     loop {
         unsafe {
             asm!("hlt");
