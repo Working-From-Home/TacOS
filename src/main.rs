@@ -4,6 +4,7 @@
 #![allow(dead_code)]    // temporary solution to avoid warnings for unused functions
 
 mod drivers;
+mod gdt;
 mod shell;
 mod io;
 mod klib;
@@ -17,5 +18,6 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
+    gdt::init();
     crate::shell::run();
 }

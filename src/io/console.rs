@@ -43,7 +43,11 @@ pub fn show_welcome_message() {
     cursor::new_line();
 }
 
+static mut PROMPT_START_COL: usize = 0;
+
 pub fn show_prompt() {
+    let (x, _) = cursor::get_pos();
+    unsafe { PROMPT_START_COL = x; }
     let color = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
     let prompt = b"$ ";
     for &c in prompt {
@@ -52,8 +56,22 @@ pub fn show_prompt() {
     }
 }
 
-// temporary. need to find a better way to handle this
 pub const PROMPT_LEN: usize = 2; // "$ "
+
+/// Returns the column where the input area begins (after the prompt).
+pub fn input_start_col() -> usize {
+    unsafe { PROMPT_START_COL + PROMPT_LEN }
+}
+
+/// Returns the maximum number of input characters that fit on the current line.
+pub fn max_input_len() -> usize {
+    let start = input_start_col();
+    if start >= crate::drivers::vga::VGA_WIDTH {
+        0
+    } else {
+        crate::drivers::vga::VGA_WIDTH - start
+    }
+}
 
 pub fn show_error(msg: &str) {
     let color: u8 = vga::get_color_code(vga::Color::Red, vga::Color::Black);

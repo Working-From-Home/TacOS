@@ -9,7 +9,7 @@ pub fn write_char(c: u8) {
 
 /// Prints a character to the VGA buffer at 0xb8000 at a specific position.
 pub fn write_char_at(c: u8, x: usize, y: usize) {
-    draw_char_at(x + console::PROMPT_LEN, y, c, DEFAULT_COLOR);
+    draw_char_at(x + console::input_start_col(), y, c, DEFAULT_COLOR);
 }
 
 /// Prints a character to the VGA buffer at 0xb8000 with a specific color.

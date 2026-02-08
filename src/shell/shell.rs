@@ -15,51 +15,94 @@ pub fn run() -> ! {
     }
 }
 
+type CmdHandler = fn(args: &'static [u8]);
+
+struct Command {
+    name: &'static [u8],
+    handler: CmdHandler,
+}
+
+static COMMANDS: &[Command] = &[
+    Command { name: b"help",     handler: help },
+    Command { name: b"echo",     handler: super::builtin::echo::echo },
+    Command { name: b"tacos",    handler: tacos },
+    Command { name: b"shutdown", handler: shutdown },
+    Command { name: b"halt",     handler: shutdown },
+    Command { name: b"printk",   handler: printk_test },
+    Command { name: b"stack",    handler: crate::klib::stack::print_stack },
+    Command { name: b"gdt",      handler: crate::gdt::print_gdt },
+];
+
+/// Checks if `args` starts with `name` followed by a space or end of input.
+/// Returns the remainder after the command (skipping the separating space).
+/// Checks if `haystack` starts with `needle`.
+fn starts_with(haystack: &[u8], needle: &[u8]) -> bool {
+    if haystack.len() < needle.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < needle.len() {
+        if unsafe { *haystack.get_unchecked(i) } != unsafe { *needle.get_unchecked(i) } {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
 pub fn handle_command(input: &'static [u8]) {
     if input.is_empty() {
         return;
     }
 
-    let (cmd, args) = parse_input(input);
+    let args = parse_input(input);
+    if args.is_empty() {
+        return;
+    }
 
-    match cmd {
-        b"help" => {
-            console::write_line(
-                b"Available commands: help, echo, tacos, shutdown, halt, printk\0".as_ptr(),
-            );
-        }
-        b"shutdown" | b"halt" => {
-            shutdown();
-        }
-        b"tacos" => {
-            tacos();
-        }
-        b"printk" => {
-            printk_test();
-        }
-        b"echo" => {
-            super::builtin::echo::echo(args);
-        }
-        _ => {
-            printkln!("Unknown command: {}", cmd);
+    for entry in COMMANDS.iter() {
+        let n = entry.name.len();
+        if starts_with(args, entry.name)
+            && (args.len() == n || unsafe { *args.get_unchecked(n) } == b' ')
+        {
+            (entry.handler)(args);
+            return;
         }
     }
+    printkln!("Unknown command: {}", args);
 }
 
-/// Splits input into (command, args) by finding the first unquoted space.
-/// Handles quote stripping and escape sequences at the parser level so
-/// commands receive clean, pre-processed arguments.
+fn help(_args: &[u8]) {
+    printk!("Available commands:");
+    let mut first = true;
+    for entry in COMMANDS.iter() {
+        if first {
+            printk!(" ");
+            first = false;
+        } else {
+            printk!(", ");
+        }
+        printk!("{}", entry.name);
+    }
+    printkln!();
+}
+
+/// Parses all tokens from `input` into a static argv array.
+/// Each whitespace-delimited token becomes one entry in `ARGV`.
+/// Handles quote stripping and escape sequences so commands
+/// receive clean, pre-processed arguments.
+/// Returns the number of arguments (argc).
 ///
 /// Examples:
-///   `echo "hello world"`  → cmd=`echo`, args=`hello world`
-///   `echo"v"`             → cmd=`echov`, args=``  (like zsh)
-///   `echo "a\nb"`         → cmd=`echo`, args=`a<LF>b`
-///   `echo \z`             → cmd=`echo`, args=`` (unknown escape dropped)
+///   `echo "hello world"`  → argv = [`echo`, `hello world`]
+///   `echo"v"`             → argv = [`echov`]  (like zsh)
+///   `echo "a\nb"`         → argv = [`echo`, `a<LF>b`]
+///   `echo \z`             → argv = [`echo`] (unknown escape dropped)
 
 const PARSE_BUF_SIZE: usize = 80;
 static mut PARSE_BUF: [u8; PARSE_BUF_SIZE] = [0; PARSE_BUF_SIZE];
 
-fn parse_input(input: &[u8]) -> (&'static [u8], &'static [u8]) {
+fn parse_input(input: &[u8]) -> &'static [u8] {
     let buf = unsafe { &mut PARSE_BUF };
     let mut out: usize = 0;
     let mut i: usize = 0;
@@ -70,25 +113,12 @@ fn parse_input(input: &[u8]) -> (&'static [u8], &'static [u8]) {
         i += 1;
     }
 
-    // Parse command token (stops at unquoted space)
-    let cmd_start: usize = 0;
-    i = parse_token(input, i, buf, &mut out);
-    let cmd_end = out;
-
-    // Skip spaces between command and args
-    while i < len && input[i] == b' ' {
-        i += 1;
-    }
-
-    // Parse args — preserves single space between tokens
-    let args_start = out;
+    // Parse all tokens into buffer, separated by single spaces
     while i < len {
         if input[i] == b' ' {
-            // Collapse multiple spaces into one
             while i < len && input[i] == b' ' {
                 i += 1;
             }
-            // Only add separator if there's more content
             if i < len && out < PARSE_BUF_SIZE {
                 buf[out] = b' ';
                 out += 1;
@@ -97,12 +127,8 @@ fn parse_input(input: &[u8]) -> (&'static [u8], &'static [u8]) {
             i = parse_token(input, i, buf, &mut out);
         }
     }
-    let args_end = out;
 
-    // SAFETY: all indices are <= PARSE_BUF_SIZE, validated by bounds checks above
-    let cmd = unsafe { PARSE_BUF.get_unchecked(cmd_start..cmd_end) };
-    let args = unsafe { PARSE_BUF.get_unchecked(args_start..args_end) };
-    (cmd, args)
+    unsafe { PARSE_BUF.get_unchecked(..out) }
 }
 
 /// Parses a single token from `input[i..]` into `buf[*out..]`.
@@ -174,15 +200,15 @@ fn escape_char(c: u8) -> u8 {
     }
 }
 
-fn tacos() {
-    static mut tacos_counter: u8 = 0;
-    unsafe {
-        tacos_counter += 9;
-    }
+fn tacos(_args: &[u8]) {
+    static mut tacos_counter: u8 = 1;
     printkln!("You ate {} tacos!\0", unsafe { tacos_counter });
+    unsafe {
+        tacos_counter += 3;
+    }
 }
 
-fn printk_test() {
+fn printk_test(_args: &[u8]) {
     printkln!("=== printk test ===");
     printkln!("String: {}", "Hello from TacOS");
     printkln!("Integer: {}", 42);
@@ -204,7 +230,7 @@ fn printk_test() {
     printkln!();
 }
 
-fn shutdown() {
+fn shutdown(_args: &[u8]) {
     outb(0xF4, 0x00);
     loop {
         unsafe {
