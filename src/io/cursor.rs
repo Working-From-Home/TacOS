@@ -36,7 +36,11 @@ pub fn move_right() {
         CURSOR_X += 1;
         if CURSOR_X >= vga::VGA_WIDTH {
             CURSOR_X = 0;
-            CURSOR_Y = (CURSOR_Y + 1).min(vga::VGA_HEIGHT - 1);
+            if CURSOR_Y + 1 >= vga::VGA_HEIGHT {
+                vga::scroll_buffer_up();
+            } else {
+                CURSOR_Y += 1;
+            }
         }
     }
     sync_to_hardware();
