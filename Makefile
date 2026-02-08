@@ -55,7 +55,9 @@ iso: link
 
 .PHONY: run
 run: iso
-	@qemu-system-i386 -cdrom tacos.iso -display curses -device isa-debug-exit,iobase=0xf4,iosize=0x04 || true
+	@qemu-system-i386 -cdrom tacos.iso -display curses -boot d \
+		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+		|| true
 
 .PHONY: clean
 clean:
