@@ -1,5 +1,5 @@
+use crate::drivers::keyboard::KeyEvent;
 use crate::io::{console, cursor, display, input_buffer};
-use crate::drivers::{keyboard::KeyEvent};
 
 pub fn handle_key_event(event: KeyEvent) {
     match event {

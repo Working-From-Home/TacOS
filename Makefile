@@ -19,6 +19,8 @@ define ALL_HELP_INFO
 #   setup-42-linux           # setup the 42 Linux environment (compile and install everything fine...except grub-pc still missing)
 #   vm-42-start              # start the Vagrant VM
 #   vm-42-delete             # delete the Vagrant VM
+#
+#   format                   # format the code using rustfmt
 endef
 
 .PHONY: all
@@ -75,6 +77,7 @@ check-tools:
 setup-42-linux:
 	@./setup-42-linux.sh
 
+.PHONY: vm-42-start
 vm-42-start:
 # @vboxmanage setproperty machinefolder ~/sgoinfre
 	@VBoxManage list systemproperties | grep "Default machine folder:"
@@ -82,7 +85,11 @@ vm-42-start:
 	@VBoxManage list systemproperties | grep "Default machine folder:"
 	@vagrant up
 
+.PHONY: vm-42-delete
 vm-42-delete:
 	@vagrant destroy -f
 	rm -rf ./vagrant/
 
+.PHONY: format
+format:
+	cargo fmt

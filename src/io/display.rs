@@ -33,3 +33,64 @@ pub fn write_buffer_line(buffer: &[u8], len: usize, start_pos: usize, cursor_y: 
         write_char_at(b' ', len + i, cursor_y);
     }
 }
+
+/// Writes a single byte to the screen at the current cursor position,
+/// advancing the cursor. Interprets \n as newline and \t as a 4-space tab.
+pub fn put_char(c: u8) {
+    match c {
+        0x07 => {} // bell: no visible output
+        b'\n' => cursor::new_line(),
+        0x0B => {
+            // vertical tab: move cursor down, keep column
+            let (x, y) = cursor::get_pos();
+            if y + 1 >= crate::drivers::vga::VGA_HEIGHT {
+                crate::drivers::vga::scroll_buffer_up();
+                cursor::set_pos(x, y);
+            } else {
+                cursor::set_pos(x, y + 1);
+            }
+        }
+        b'\t' => {
+            let (x, _) = cursor::get_pos();
+            let spaces = 4 - (x % 4);
+            let mut s = 0;
+            while s < spaces {
+                write_colored_char(b' ', DEFAULT_COLOR);
+                cursor::move_right();
+                s += 1;
+            }
+        }
+        _ => {
+            write_colored_char(c, DEFAULT_COLOR);
+            cursor::move_right();
+        }
+    }
+}
+
+/// Writes a string to the screen at the current cursor position,
+/// advancing the cursor. Interprets \n as newline.
+pub fn put_str(s: &str) {
+    let ptr = s.as_ptr();
+    let len = s.len();
+    let mut i: usize = 0;
+    while i < len {
+        unsafe {
+            put_char(*ptr.add(i));
+        }
+        i += 1;
+    }
+}
+
+/// Writes a byte slice to the screen at the current cursor position,
+/// advancing the cursor. Interprets \n as newline.
+pub fn put_bytes(bytes: &[u8]) {
+    let ptr = bytes.as_ptr();
+    let len = bytes.len();
+    let mut i: usize = 0;
+    while i < len {
+        unsafe {
+            put_char(*ptr.add(i));
+        }
+        i += 1;
+    }
+}
