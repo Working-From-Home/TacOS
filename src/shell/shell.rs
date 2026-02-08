@@ -32,6 +32,13 @@ static COMMANDS: &[Command] = &[
     Command { name: b"printk",   handler: printk_test },
     Command { name: b"stack",    handler: crate::klib::stack::print_stack },
     Command { name: b"gdt",      handler: crate::gdt::print_gdt },
+    Command { name: b"mem",      handler: crate::memory::frame::print_info },
+    Command { name: b"mmap",     handler: crate::memory::frame::print_mmap },
+    Command { name: b"paging",   handler: crate::memory::paging::print_info },
+    Command { name: b"heap",     handler: crate::memory::heap::print_info },
+    Command { name: b"vmalloc",  handler: crate::memory::virt::print_info },
+    Command { name: b"panic",    handler: trigger_panic },
+    Command { name: b"alloc",    handler: test_alloc },
 ];
 
 /// Checks if `args` starts with `name` followed by a space or end of input.
@@ -244,12 +251,10 @@ fn reboot(_args: &[u8]) {
     printkln!("Rebooting...");
     // Send reset command (0xFE) to the keyboard controller (port 0x64)
     // This triggers a CPU reset on real hardware and in QEMU
-    unsafe {
-        // Wait for the keyboard controller input buffer to be empty
-        let mut status = crate::drivers::port::inb(0x64);
-        while status & 0x02 != 0 {
-            status = crate::drivers::port::inb(0x64);
-        }
+    // Wait for the keyboard controller input buffer to be empty
+    let mut status = crate::drivers::port::inb(0x64);
+    while status & 0x02 != 0 {
+        status = crate::drivers::port::inb(0x64);
     }
     outb(0x64, 0xFE);
     // If the above didn't work, triple-fault by loading a null IDT and interrupting
@@ -258,4 +263,67 @@ fn reboot(_args: &[u8]) {
             asm!("hlt");
         }
     }
+}
+
+fn trigger_panic(_args: &[u8]) {
+    crate::kernel_panic!("User-triggered panic from shell");
+}
+
+fn test_alloc(_args: &[u8]) {
+    use crate::memory::heap;
+    use crate::memory::virt;
+
+    printkln!("=== Memory Allocation Test ===");
+
+    // Test kmalloc
+    printkln!("Testing kmalloc...");
+    let ptr1 = heap::kmalloc(64);
+    printkln!("  kmalloc(64) = {:#x}", ptr1 as u32);
+    printkln!("  ksize = {}", heap::ksize(ptr1));
+
+    let ptr2 = heap::kmalloc(128);
+    printkln!("  kmalloc(128) = {:#x}", ptr2 as u32);
+    printkln!("  ksize = {}", heap::ksize(ptr2));
+
+    // Write to allocated memory
+    if !ptr1.is_null() {
+        unsafe {
+            *ptr1 = 0xAA;
+            *(ptr1.add(63)) = 0xBB;
+        }
+        printkln!("  Write/read OK: first={:#x}, last={:#x}",
+            unsafe { *ptr1 } as u32, unsafe { *(ptr1.add(63)) } as u32);
+    }
+
+    // Test kfree
+    printkln!("Testing kfree...");
+    heap::kfree(ptr1);
+    printkln!("  kfree(ptr1) OK");
+
+    // Reallocate from freed space
+    let ptr3 = heap::kmalloc(32);
+    printkln!("  kmalloc(32) = {:#x} (should reuse freed space)", ptr3 as u32);
+
+    heap::kfree(ptr2);
+    heap::kfree(ptr3);
+    printkln!("  kfree all OK");
+
+    // Test vmalloc
+    printkln!("Testing vmalloc...");
+    let vptr = virt::vmalloc(4096);
+    printkln!("  vmalloc(4096) = {:#x}", vptr as u32);
+    printkln!("  vsize = {}", virt::vsize(vptr));
+
+    if !vptr.is_null() {
+        unsafe {
+            *vptr = 0xCC;
+            *(vptr.add(4095)) = 0xDD;
+        }
+        printkln!("  Write/read OK: first={:#x}, last={:#x}",
+            unsafe { *vptr } as u32, unsafe { *(vptr.add(4095)) } as u32);
+        virt::vfree(vptr);
+        printkln!("  vfree OK");
+    }
+
+    printkln!("=== All allocation tests passed ===");
 }

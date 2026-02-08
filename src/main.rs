@@ -5,6 +5,8 @@
 
 mod drivers;
 mod gdt;
+mod memory;
+mod panic;
 mod shell;
 mod io;
 mod klib;
@@ -12,12 +14,32 @@ mod klib;
 use core::panic::PanicInfo;
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+fn rust_panic(info: &PanicInfo) -> ! {
+    // Disable interrupts
+    unsafe { core::arch::asm!("cli"); }
+
+    io::display::set_color(0x4F); // White on Red
+
+    printkln!();
+    printkln!("!!! RUST PANIC !!!");
+    if let Some(location) = info.location() {
+        printkln!("  at {}:{}", location.file(), location.line());
+    }
+
+    klib::stack::print_stack(&[]);
+
+    io::display::set_color(0x4F);
+    printkln!();
+    printkln!("System halted.");
+
+    loop {
+        unsafe { core::arch::asm!("cli; hlt"); }
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn rust_main() -> ! {
+pub extern "C" fn rust_main(multiboot_info_addr: u32) -> ! {
     gdt::init();
+    memory::init(multiboot_info_addr);
     crate::shell::run();
 }

@@ -1,6 +1,25 @@
 use crate::io::{cursor, console};
 use crate::drivers::vga::{draw_char_at, DEFAULT_COLOR};
 
+/// Global current output color — used by put_char/put_str.
+/// Defaults to DEFAULT_COLOR (LightCyan on Black).
+static mut CURRENT_COLOR: u8 = DEFAULT_COLOR;
+
+/// Sets the current output color for subsequent put_char/put_str calls.
+pub fn set_color(color: u8) {
+    unsafe { CURRENT_COLOR = color; }
+}
+
+/// Returns the current output color.
+pub fn get_color() -> u8 {
+    unsafe { CURRENT_COLOR }
+}
+
+/// Resets the output color to the default (LightCyan on Black).
+pub fn reset_color() {
+    unsafe { CURRENT_COLOR = DEFAULT_COLOR; }
+}
+
 /// Prints a character to the VGA buffer at 0xb8000 with the default color.
 pub fn write_char(c: u8) {
     let (x, y) = cursor::get_pos();
@@ -37,6 +56,7 @@ pub fn write_buffer_line(buffer: &[u8], len: usize, start_pos: usize, cursor_y: 
 /// Writes a single byte to the screen at the current cursor position,
 /// advancing the cursor. Interprets \n as newline and \t as a 4-space tab.
 pub fn put_char(c: u8) {
+    let color = unsafe { CURRENT_COLOR };
     match c {
         0x07 => {} // bell: no visible output
         b'\n' => cursor::new_line(),
@@ -55,13 +75,13 @@ pub fn put_char(c: u8) {
             let spaces = 4 - (x % 4);
             let mut s = 0;
             while s < spaces {
-                write_colored_char(b' ', DEFAULT_COLOR);
+                write_colored_char(b' ', color);
                 cursor::move_right();
                 s += 1;
             }
         }
         _ => {
-            write_colored_char(c, DEFAULT_COLOR);
+            write_colored_char(c, color);
             cursor::move_right();
         }
     }
