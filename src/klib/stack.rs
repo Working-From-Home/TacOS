@@ -41,7 +41,7 @@ fn get_esp() -> u32 {
 /// Walks the frame pointer (EBP) chain and displays each frame's
 /// saved EBP and return address. This is the function required by
 /// the KFS-2 subject.
-pub fn print_stack(_args: &[u8]) {
+pub fn print_stack() {
     let esp = get_esp();
     let ebp = get_ebp();
 

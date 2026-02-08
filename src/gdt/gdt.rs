@@ -219,7 +219,7 @@ unsafe fn load_gdt(gdt_ptr: &GdtPointer) {
 }
 
 /// Prints the GDT contents in a human-readable format.
-pub fn print_gdt(_args: &[u8]) {
+pub fn print_gdt() {
     // Read back the actual GDTR to verify it's loaded correctly
     let mut gdtr_buf: [u8; 6] = [0; 6];
     unsafe {

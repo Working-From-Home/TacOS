@@ -15,7 +15,7 @@ pub fn run() -> ! {
     }
 }
 
-type CmdHandler = fn(args: &'static [u8]);
+type CmdHandler = fn(argv: &'static [&'static [u8]]);
 
 struct Command {
     name: &'static [u8],
@@ -23,20 +23,17 @@ struct Command {
 }
 
 static COMMANDS: &[Command] = &[
-    Command { name: b"help",     handler: help },
+    Command { name: b"help",     handler: |_| help() },
     Command { name: b"echo",     handler: super::builtin::echo::echo },
-    Command { name: b"tacos",    handler: tacos },
-    Command { name: b"shutdown", handler: shutdown },
-    Command { name: b"halt",     handler: shutdown },
-    Command { name: b"reboot",   handler: reboot },
-    Command { name: b"printk",   handler: printk_test },
-    Command { name: b"stack",    handler: crate::klib::stack::print_stack },
-    Command { name: b"gdt",      handler: crate::gdt::print_gdt },
+    Command { name: b"tacos",    handler: |_| tacos() },
+    Command { name: b"shutdown", handler: |_| shutdown() },
+    Command { name: b"halt",     handler: |_| shutdown() },
+    Command { name: b"reboot",   handler: |_| reboot() },
+    Command { name: b"printk",   handler: |_| printk_test() },
+    Command { name: b"stack",    handler: |_| crate::klib::stack::print_stack() },
+    Command { name: b"gdt",      handler: |_| crate::gdt::print_gdt() },
 ];
 
-/// Checks if `args` starts with `name` followed by a space or end of input.
-/// Returns the remainder after the command (skipping the separating space).
-/// Checks if `haystack` starts with `needle`.
 fn starts_with(haystack: &[u8], needle: &[u8]) -> bool {
     if haystack.len() < needle.len() {
         return false;
@@ -56,24 +53,23 @@ pub fn handle_command(input: &'static [u8]) {
         return;
     }
 
-    let args = parse_input(input);
-    if args.is_empty() {
+    let argv = parse_input(input);
+    if argv.is_empty() {
         return;
     }
 
+    let cmd_name = argv[0];
+    
     for entry in COMMANDS.iter() {
-        let n = entry.name.len();
-        if starts_with(args, entry.name)
-            && (args.len() == n || unsafe { *args.get_unchecked(n) } == b' ')
-        {
-            (entry.handler)(args);
+        if starts_with(cmd_name, entry.name) && cmd_name.len() == entry.name.len() {
+            (entry.handler)(argv);
             return;
         }
     }
-    printkln!("Unknown command: {}", args);
+    printkln!("Unknown command: {}", cmd_name);
 }
 
-fn help(_args: &[u8]) {
+fn help() {
     printkln!("Available commands:");
     let mut first = true;
     for entry in COMMANDS.iter() {
@@ -88,24 +84,21 @@ fn help(_args: &[u8]) {
     printkln!();
 }
 
-/// Parses all tokens from `input` into a static argv array.
-/// Each whitespace-delimited token becomes one entry in `ARGV`.
-/// Handles quote stripping and escape sequences so commands
-/// receive clean, pre-processed arguments.
-/// Returns the number of arguments (argc).
-///
-/// Examples:
-///   `echo "hello world"`  → argv = [`echo`, `hello world`]
-///   `echo"v"`             → argv = [`echov`]  (like zsh)
-///   `echo "a\nb"`         → argv = [`echo`, `a<LF>b`]
-///   `echo \z`             → argv = [`echo`] (unknown escape dropped)
-
+// NEW: Parse into argv array instead of single byte slice
+const MAX_ARGS: usize = 16;
 const PARSE_BUF_SIZE: usize = 80;
-static mut PARSE_BUF: [u8; PARSE_BUF_SIZE] = [0; PARSE_BUF_SIZE];
 
-fn parse_input(input: &[u8]) -> &'static [u8] {
+static mut PARSE_BUF: [u8; PARSE_BUF_SIZE] = [0; PARSE_BUF_SIZE];
+static mut ARGV: [&'static [u8]; MAX_ARGS] = [&[]; MAX_ARGS];
+
+/// Parses input into argv-style array.
+/// Returns slice of argument slices where argv[0] is command, argv[1..] are args.
+fn parse_input(input: &[u8]) -> &'static [&'static [u8]] {
     let buf = unsafe { &mut PARSE_BUF };
-    let mut out: usize = 0;
+    let argv = unsafe { &mut ARGV };
+    
+    let mut out: usize = 0;  // Position in PARSE_BUF
+    let mut argc: usize = 0; // Number of arguments
     let mut i: usize = 0;
     let len = input.len();
 
@@ -114,22 +107,25 @@ fn parse_input(input: &[u8]) -> &'static [u8] {
         i += 1;
     }
 
-    // Parse all tokens into buffer, separated by single spaces
-    while i < len {
+    // Parse tokens
+    while i < len && argc < MAX_ARGS {
         if input[i] == b' ' {
+            // Skip consecutive spaces
             while i < len && input[i] == b' ' {
                 i += 1;
             }
-            if i < len && out < PARSE_BUF_SIZE {
-                buf[out] = b' ';
-                out += 1;
-            }
         } else {
+            // Parse one token
+            let start = out;
             i = parse_token(input, i, buf, &mut out);
+            
+            // Store this argument
+            argv[argc] = unsafe { PARSE_BUF.get_unchecked(start..out) };
+            argc += 1;
         }
     }
 
-    unsafe { PARSE_BUF.get_unchecked(..out) }
+    unsafe { ARGV.get_unchecked(..argc) }
 }
 
 /// Parses a single token from `input[i..]` into `buf[*out..]`.
@@ -185,8 +181,6 @@ fn parse_token(
     i
 }
 
-/// Converts the character after a backslash into the corresponding escape byte.
-/// Returns 0xFF for unknown escapes (sentinel: character is dropped).
 fn escape_char(c: u8) -> u8 {
     match c {
         b'n' => b'\n',
@@ -197,11 +191,11 @@ fn escape_char(c: u8) -> u8 {
         b'\'' => b'\'',
         b'"' => b'"',
         b'0' => 0,
-        _ => 0xFF, // unknown escape: drop
+        _ => 0xFF,
     }
 }
 
-fn tacos(_args: &[u8]) {
+fn tacos() {
     static mut tacos_counter: u8 = 1;
     printkln!("You ate {} tacos!\0", unsafe { tacos_counter });
     unsafe {
@@ -209,7 +203,7 @@ fn tacos(_args: &[u8]) {
     }
 }
 
-fn printk_test(_args: &[u8]) {
+fn printk_test() {
     printkln!("=== printk test ===");
     printkln!("String: {}", "Hello from TacOS");
     printkln!("Integer: {}", 42);
@@ -231,7 +225,7 @@ fn printk_test(_args: &[u8]) {
     printkln!();
 }
 
-fn shutdown(_args: &[u8]) {
+fn shutdown() {
     outb(0xF4, 0x00);
     loop {
         unsafe {
@@ -240,19 +234,15 @@ fn shutdown(_args: &[u8]) {
     }
 }
 
-fn reboot(_args: &[u8]) {
+fn reboot() {
     printkln!("Rebooting...");
-    // Send reset command (0xFE) to the keyboard controller (port 0x64)
-    // This triggers a CPU reset on real hardware and in QEMU
     unsafe {
-        // Wait for the keyboard controller input buffer to be empty
         let mut status = crate::drivers::port::inb(0x64);
         while status & 0x02 != 0 {
             status = crate::drivers::port::inb(0x64);
         }
     }
     outb(0x64, 0xFE);
-    // If the above didn't work, triple-fault by loading a null IDT and interrupting
     loop {
         unsafe {
             asm!("hlt");
