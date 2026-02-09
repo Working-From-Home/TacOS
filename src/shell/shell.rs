@@ -31,6 +31,7 @@ static COMMANDS: &[Command] = &[
     Command { name: b"reboot",   handler: |_| reboot() },
     Command { name: b"printk",   handler: |_| printk_test() },
     Command { name: b"stack",    handler: |_| crate::klib::stack::print_stack() },
+    Command { name: b"stack_test",    handler: |_| stack_test() },
     Command { name: b"gdt",      handler: |_| crate::gdt::print_gdt() },
 ];
 
@@ -223,6 +224,20 @@ fn printk_test() {
     printk!("Two new lines...\n\nDone!");
     printkln!("=== end test ===");
     printkln!();
+}
+
+fn stack_test() {
+    #[inline(never)]
+    fn recursive(n: u32) {
+        if n == 0 {
+            crate::klib::stack::print_stack();
+        } else {
+            recursive(n - 1);
+            // Prevent tail-call optimization: force the compiler to keep the frame alive
+            unsafe { core::arch::asm!("", options(nomem, nostack)); }
+        }
+    }
+    recursive(5);
 }
 
 fn shutdown() {

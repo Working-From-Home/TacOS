@@ -32,11 +32,12 @@ help:
 
 .PHONY: build
 build:
-	cargo rustc --release --target target-specs/i686-custom.json -- --emit=obj
+	@cargo clean -p tacos --release --target target-specs/i686-custom.json 2>/dev/null || true
+	RUSTFLAGS="-C force-frame-pointers=yes" cargo rustc --release --target target-specs/i686-custom.json -- --emit=obj
 
 .PHONY: kernel
 kernel:
-	cargo build --release
+	RUSTFLAGS="-C force-frame-pointers=yes" cargo build --release
 
 .PHONY: boot
 boot:
@@ -44,7 +45,7 @@ boot:
 
 .PHONY: link
 link: build boot
-	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot.o target/i686-custom/release/deps/*.o
+	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot.o target/i686-custom/release/deps/tacos-*.o
 
 .PHONY: iso
 iso: link

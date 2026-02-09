@@ -46,9 +46,7 @@ pub fn print_stack() {
     let ebp = get_ebp();
 
     printkln!("=== Kernel Stack Trace ===");
-    printkln!("  ESP: {:#x}", esp);
-    printkln!("  EBP: {:#x}", ebp);
-    printkln!();
+    printkln!("  ESP: {:#x}\n  EBP: {:#x}\n", esp, ebp);
     printkln!("  Frame  EBP         Return Addr");
     printkln!("  -----  ----------  -----------");
 
@@ -83,24 +81,4 @@ pub fn print_stack() {
     }
 
     printkln!("=== End Stack Trace ({} frames) ===", frame as u32);
-}
-
-/// Prints a hex dump of the raw stack memory.
-///
-/// Shows `count` 32-bit words starting from the current ESP,
-/// which gives a low-level view of the stack contents.
-pub fn print_stack_dump(count: usize) {
-    let esp = get_esp();
-
-    printkln!("=== Stack Dump (from ESP={:#x}, {} words) ===", esp, count as u32);
-
-    let mut i: usize = 0;
-    while i < count {
-        let addr = esp + (i as u32) * 4;
-        let val = unsafe { *(addr as *const u32) };
-        printkln!("  [{:#x}]  {:#x}", addr, val);
-        i += 1;
-    }
-
-    printkln!("=== End Stack Dump ===");
 }
