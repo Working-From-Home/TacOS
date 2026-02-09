@@ -1,6 +1,9 @@
 use crate::io::{cursor, console};
 use crate::drivers::vga::{draw_char_at, DEFAULT_COLOR};
 
+/// Number of spaces per tab stop.
+pub const TAB_SIZE: usize = 8;
+
 /// Prints a character to the VGA buffer at 0xb8000 with the default color.
 pub fn write_char(c: u8) {
     let (x, y) = cursor::get_pos();
@@ -35,7 +38,7 @@ pub fn write_buffer_line(buffer: &[u8], len: usize, start_pos: usize, cursor_y: 
 }
 
 /// Writes a single byte to the screen at the current cursor position,
-/// advancing the cursor. Interprets \n as newline and \t as a 4-space tab.
+/// advancing the cursor. Interprets \n as newline and \t as a tab-aligned space.
 pub fn put_char(c: u8) {
     match c {
         0x07 => {} // bell: no visible output
@@ -52,7 +55,7 @@ pub fn put_char(c: u8) {
         }
         b'\t' => {
             let (x, _) = cursor::get_pos();
-            let spaces = 4 - (x % 4);
+            let spaces = TAB_SIZE - (x % TAB_SIZE);
             let mut s = 0;
             while s < spaces {
                 write_colored_char(b' ', DEFAULT_COLOR);
