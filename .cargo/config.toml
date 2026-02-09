@@ -1,9 +1,9 @@
-[unstable]
-build-std = ["core", "compiler_builtins"]
-build-std-features = ["compiler-builtins-mem"]
+# Kernel-specific build settings (build-std, target) are passed via Makefile
+# so that `cargo test` and VS Code debug work on the host target without conflicts.
 
+# Default test/check target: same 32-bit word size as the kernel
 [build]
-target = "target-specs/i686-custom.json"
+target = "i686-unknown-linux-gnu"
 
 # [target.i686-custom]
 # rustflags = ["-C", "link-arg=-nostartfiles"]

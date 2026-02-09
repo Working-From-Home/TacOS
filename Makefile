@@ -21,6 +21,7 @@ define ALL_HELP_INFO
 #   vm-42-delete             # delete the Vagrant VM
 #
 #   format                   # format the code using rustfmt
+#   test                     # run unit tests on host
 endef
 
 .PHONY: all
@@ -30,14 +31,18 @@ all: iso
 help:
 	${ALL_HELP_INFO}
 
+CARGO_KERNEL = cargo -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem
+KERNEL_TARGET = target-specs/i686-custom.json
+
 .PHONY: build
 build:
-	@cargo clean -p tacos --release --target target-specs/i686-custom.json 2>/dev/null || true
-	RUSTFLAGS="-C force-frame-pointers=yes" cargo rustc --release --target target-specs/i686-custom.json -- --emit=obj
+	@cargo clean -p tacos --release --target $(KERNEL_TARGET) 2>/dev/null || true
+	RUSTFLAGS="-C force-frame-pointers=yes" $(CARGO_KERNEL) rustc --release --target $(KERNEL_TARGET) --lib -- --emit=obj
+	RUSTFLAGS="-C force-frame-pointers=yes" $(CARGO_KERNEL) rustc --release --target $(KERNEL_TARGET) --bin tacos -- --emit=obj
 
 .PHONY: kernel
 kernel:
-	RUSTFLAGS="-C force-frame-pointers=yes" cargo build --release
+	RUSTFLAGS="-C force-frame-pointers=yes" $(CARGO_KERNEL) build --release --target $(KERNEL_TARGET)
 
 .PHONY: boot
 boot:
@@ -94,3 +99,7 @@ vm-42-delete:
 .PHONY: format
 format:
 	cargo fmt
+
+.PHONY: test
+test:
+	cargo test --lib --target i686-unknown-linux-gnu
