@@ -11,7 +11,7 @@
 /// can be mapped to function names if symbols are available.
 
 use core::arch::asm;
-use crate::printkln;
+use crate::println;
 
 /// Maximum number of frames to walk (prevents infinite loops).
 const MAX_FRAMES: usize = 20;
@@ -45,10 +45,10 @@ pub fn print_stack() {
     let esp = get_esp();
     let ebp = get_ebp();
 
-    printkln!("=== Kernel Stack Trace ===");
-    printkln!("  ESP: {:#x}\n  EBP: {:#x}\n", esp, ebp);
-    printkln!("  Frame  EBP         Return Addr");
-    printkln!("  -----  ----------  -----------");
+    println!("=== Kernel Stack Trace ===");
+    println!("  ESP: {:#x}\n  EBP: {:#x}\n", esp, ebp);
+    println!("  Frame  EBP         Return Addr");
+    println!("  -----  ----------  -----------");
 
     let mut current_ebp = ebp;
     let mut frame: usize = 0;
@@ -58,7 +58,7 @@ pub fn print_stack() {
         let saved_ebp = unsafe { *(current_ebp as *const u32) };
         let return_addr = unsafe { *((current_ebp + 4) as *const u32) };
 
-        printkln!(
+        println!(
             "  [{}]    {:#x}    {:#x}",
             frame as u32,
             current_ebp,
@@ -68,7 +68,7 @@ pub fn print_stack() {
         // Sanity check: EBP should increase as we walk up the stack
         // (stack grows downward, so older frames have higher addresses)
         if saved_ebp != 0 && saved_ebp <= current_ebp {
-            printkln!("  (frame chain broken: saved_ebp <= current_ebp)");
+            println!("  (frame chain broken: saved_ebp <= current_ebp)");
             break;
         }
 
@@ -77,8 +77,8 @@ pub fn print_stack() {
     }
 
     if frame == MAX_FRAMES {
-        printkln!("  ... (max depth reached)");
+        println!("  ... (max depth reached)");
     }
 
-    printkln!("=== End Stack Trace ({} frames) ===", frame as u32);
+    println!("=== End Stack Trace ({} frames) ===", frame as u32);
 }

@@ -1,4 +1,4 @@
-use crate::{printk, printkln};
+use crate::{print, println};
 
 pub fn echo(argv: &'static [&'static [u8]]) {
     let mut start = 1;
@@ -11,12 +11,12 @@ pub fn echo(argv: &'static [&'static [u8]]) {
     let mut i = start;
     while i < argv.len() {
         if i > start {
-            printk!(" ");
+            print!(" ");
         }
-        printk!("{}", unsafe { *argv.get_unchecked(i) });
+        print!("{}", unsafe { *argv.get_unchecked(i) });
         i += 1;
     }
     if newline {
-        printkln!();
+        println!();
     }
 }

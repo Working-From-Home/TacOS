@@ -15,7 +15,7 @@
 ///
 /// The GDT is placed at physical address 0x00000800 (required by the subject)
 use core::arch::asm;
-use crate::printkln;
+use crate::println;
 
 /// Number of GDT entries
 const GDT_ENTRIES: usize = 7;
@@ -233,15 +233,15 @@ pub fn print_gdt() {
         | ((gdtr_buf[5] as u32) << 24);
     let num_entries = ((gdtr_limit as u32) + 1) / 8;
 
-    printkln!("=== Global Descriptor Table ===");
-    printkln!(
+    println!("=== Global Descriptor Table ===");
+    println!(
         "  GDTR: base={:#x}  limit={:#x}  ({} entries)",
         gdtr_base,
         gdtr_limit as u32,
         num_entries
     );
-    printkln!("  Idx  Selector  Base        Limit       Access  Flags  Type");
-    printkln!("  ---  --------  ----------  ----------  ------  -----  ----");
+    println!("  Idx  Selector  Base        Limit       Access  Flags  Type");
+    println!("  ---  --------  ----------  ----------  ------  -----  ----");
 
     let names: [&str; GDT_ENTRIES] = [
         "Null",
@@ -267,7 +267,7 @@ pub fn print_gdt() {
         let access = entry.access;
         let flags = entry.flags();
 
-        printkln!(
+        println!(
             "  [{}]  {:#x}      {:#x}  {:#x}    {:#x}    {:#x}   {}",
             i as u32,
             selector,
@@ -280,5 +280,5 @@ pub fn print_gdt() {
 
         i += 1;
     }
-    printkln!("=== End GDT ===");
+    println!("=== End GDT ===");
 }

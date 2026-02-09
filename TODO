@@ -20,4 +20,18 @@ Bonus
 - [x] Handle keyboard entries and print them.
 - [ ] Handle different screens, and keyboard shortcuts to switch easily between then.
 
+
+####
+kfs 2
+
+- [x] Create GDT  that contains kernel code/data/stack and user code/data/stack
+    - [x] print stack and gdt
+- [x] tool to print the kernel stack, in a human-friendly way
+    - [x] printk
+Bonus:
+
+- [x] minimalistic shell with a few commands, for debugging pur-
+poses
+- [x] reboot, halt
+
 TODO: bug when first `make run`in clean git repo ?

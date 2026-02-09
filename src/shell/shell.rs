@@ -1,7 +1,7 @@
 use crate::drivers::keyboard;
 use crate::drivers::port::outb;
 use crate::io::{console, io_manager};
-use crate::{printk, printkln};
+use crate::{print, println, printk, printkln};
 use core::arch::asm;
 
 pub fn run() -> ! {
@@ -33,6 +33,7 @@ static COMMANDS: &[Command] = &[
     Command { name: b"stack",    handler: |_| crate::klib::stack::print_stack() },
     Command { name: b"stack_test",    handler: |_| stack_test() },
     Command { name: b"gdt",      handler: |_| crate::gdt::print_gdt() },
+    Command { name: b"dmesg",    handler: super::builtin::dmesg::dmesg },
 ];
 
 fn starts_with(haystack: &[u8], needle: &[u8]) -> bool {
@@ -67,22 +68,22 @@ pub fn handle_command(input: &'static [u8]) {
             return;
         }
     }
-    printkln!("Unknown command: {}", cmd_name);
+    println!("Unknown command: {}", cmd_name);
 }
 
 fn help() {
-    printkln!("Available commands:");
+    println!("Available commands:");
     let mut first = true;
     for entry in COMMANDS.iter() {
         if first {
-            printk!(" ");
+            print!(" ");
             first = false;
         } else {
-            printk!(", ");
+            print!(", ");
         }
-        printk!("{}", entry.name);
+        print!("{}", entry.name);
     }
-    printkln!();
+    println!();
 }
 
 // NEW: Parse into argv array instead of single byte slice
@@ -198,7 +199,7 @@ fn escape_char(c: u8) -> u8 {
 
 fn tacos() {
     static mut tacos_counter: u8 = 1;
-    printkln!("You ate {} tacos!\0", unsafe { tacos_counter });
+    println!("You ate {} tacos!\0", unsafe { tacos_counter });
     unsafe {
         tacos_counter += 3;
     }
@@ -221,9 +222,10 @@ fn printk_test() {
     printk!("No newline...");
     printkln!(" done!");
     printkln!("Literal braces: {{}}");
-    printk!("Two new lines...\n\nDone!");
+    printk!("Two new lines...\n\nDone!\n");
     printkln!("=== end test ===");
     printkln!();
+    println!("printk test done! Use `dmesg` to see the output.");
 }
 
 fn stack_test() {
@@ -252,7 +254,7 @@ fn shutdown() {
 }
 
 fn reboot() {
-    printkln!("Rebooting...");
+    println!("Rebooting...");
     unsafe {
         let mut status = crate::drivers::port::inb(0x64);
         while status & 0x02 != 0 {
