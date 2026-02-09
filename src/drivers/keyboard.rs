@@ -10,10 +10,12 @@ pub enum KeyEvent {
     ArrowRight,
     ArrowUp,        // not implemented yet
     ArrowDown,      // not implemented yet
+    CtrlC,
     Unknown,
 }
 
 static mut SHIFT_PRESSED: bool = false;
+static mut CTRL_PRESSED: bool = false;
 
 pub fn get_key_event() -> Option<KeyEvent> {
     if let Some(scancode) = read_scancode() {
@@ -37,15 +39,24 @@ fn handle_scancode(scancode: u8) -> Option<KeyEvent> {
     match scancode {
         0x2A | 0x36 => { unsafe { SHIFT_PRESSED = true }; None },   // Shift press
         0xAA | 0xB6 => { unsafe { SHIFT_PRESSED = false }; None },  // Shift release
+        0x1D => { unsafe { CTRL_PRESSED = true }; None },           // Ctrl press
+        0x9D => { unsafe { CTRL_PRESSED = false }; None },          // Ctrl release
         _ => {
-            let map: &[Option<KeyEvent>; 128] = unsafe {
-                if SHIFT_PRESSED {
-                    &SHIFTED_SCANCODE_MAP
-                } else {
-                    &SCANCODE_MAP
+            if unsafe { CTRL_PRESSED } {
+                match scancode {
+                    0x2E => Some(KeyEvent::CtrlC),  // Ctrl+C (scancode for 'c')
+                    _ => None,
                 }
-            };
-            map.get(scancode as usize).copied().flatten()
+            } else {
+                let map: &[Option<KeyEvent>; 128] = unsafe {
+                    if SHIFT_PRESSED {
+                        &SHIFTED_SCANCODE_MAP
+                    } else {
+                        &SCANCODE_MAP
+                    }
+                };
+                map.get(scancode as usize).copied().flatten()
+            }
         }
     }
 }
