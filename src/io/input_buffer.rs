@@ -168,3 +168,25 @@ pub fn get_pos() -> usize {
         INPUT.get_pos()
     }
 }
+
+/// Replaces the entire input buffer content (used by command history).
+pub fn set_content(data: &[u8]) {
+    unsafe {
+        let max = crate::io::console::max_input_len().min(BUFFER_SIZE - 1);
+        let len = if data.len() > max { max } else { data.len() };
+        let buf_ptr = INPUT.buffer.as_mut_ptr();
+        let data_ptr = data.as_ptr();
+        let mut i = 0;
+        while i < len {
+            *buf_ptr.add(i) = *data_ptr.add(i);
+            i += 1;
+        }
+        // Clear the rest
+        while i < BUFFER_SIZE {
+            *buf_ptr.add(i) = 0;
+            i += 1;
+        }
+        INPUT.len = len;
+        INPUT.pos = len;
+    }
+}

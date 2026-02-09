@@ -8,8 +8,12 @@ pub enum KeyEvent {
     Tab,            // not implemented yet
     ArrowLeft,
     ArrowRight,
-    ArrowUp,        // not implemented yet
-    ArrowDown,      // not implemented yet
+    ArrowUp,
+    ArrowDown,
+    PageUp,
+    PageDown,
+    ScrollUp,
+    ScrollDown,
     Unknown,
 }
 
@@ -26,7 +30,8 @@ pub fn get_key_event() -> Option<KeyEvent> {
 #[inline(always)]
 fn read_scancode() -> Option<u8> {
     let status = port::inb(0x64);
-    if status & 0x01 != 0 {
+    // Bit 0 = data available, bit 5 = from mouse (skip mouse data)
+    if status & 0x01 != 0 && status & 0x20 == 0 {
         Some(port::inb(0x60))
     } else {
         None
@@ -84,10 +89,14 @@ const SCANCODE_MAP: [Option<KeyEvent>; 128] = {
     map[0x35] = Some(KeyEvent::Char('/'));
 
     map[0x39] = Some(KeyEvent::Char(' '));
+    map[0x41] = Some(KeyEvent::ScrollUp);      // F7
+    map[0x42] = Some(KeyEvent::ScrollDown);    // F8
     map[0x48] = Some(KeyEvent::ArrowUp);
+    map[0x49] = Some(KeyEvent::PageUp);
     map[0x4B] = Some(KeyEvent::ArrowLeft); 
     map[0x4D] = Some(KeyEvent::ArrowRight);
     map[0x50] = Some(KeyEvent::ArrowDown);
+    map[0x51] = Some(KeyEvent::PageDown);
 
     map
 };
@@ -126,10 +135,14 @@ const SHIFTED_SCANCODE_MAP: [Option<KeyEvent>; 128] = {
     map[0x35] = Some(KeyEvent::Char('?'));
     
     map[0x39] = Some(KeyEvent::Char(' '));
-    map[0x48] = Some(KeyEvent::ArrowUp);
+    map[0x41] = Some(KeyEvent::ScrollUp);      // F7
+    map[0x42] = Some(KeyEvent::ScrollDown);    // F8
+    map[0x48] = Some(KeyEvent::PageUp);
+    map[0x49] = Some(KeyEvent::PageUp);
     map[0x4B] = Some(KeyEvent::ArrowLeft);
     map[0x4D] = Some(KeyEvent::ArrowRight);
-    map[0x50] = Some(KeyEvent::ArrowDown);
+    map[0x50] = Some(KeyEvent::PageDown);
+    map[0x51] = Some(KeyEvent::PageDown);
 
     map
 };

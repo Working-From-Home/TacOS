@@ -12,6 +12,9 @@ pub fn run() -> ! {
         if let Some(event) = keyboard::get_key_event() {
             io_manager::handle_key_event(event);
         }
+        if let Some(scroll) = crate::drivers::mouse::poll() {
+            io_manager::handle_scroll(scroll);
+        }
     }
 }
 
@@ -103,16 +106,14 @@ fn parse_input(input: &[u8]) -> &'static [&'static [u8]] {
     let mut i: usize = 0;
     let len = input.len();
 
-    // Skip leading spaces
-    while i < len && input[i] == b' ' {
+    while i < len && (input[i] == b' ' || input[i] == b'\t') {
         i += 1;
     }
 
     // Parse tokens
     while i < len && argc < MAX_ARGS {
-        if input[i] == b' ' {
-            // Skip consecutive spaces
-            while i < len && input[i] == b' ' {
+        if input[i] == b' ' || input[i] == b'\t' {
+            while i < len && (input[i] == b' ' || input[i] == b'\t') {
                 i += 1;
             }
         } else {
@@ -141,7 +142,7 @@ fn parse_token(
 ) -> usize {
     let len = input.len();
 
-    while i < len && input[i] != b' ' {
+    while i < len && input[i] != b' ' && input[i] != b'\t' {
         if input[i] == b'"' || input[i] == b'\'' {
             let quote = input[i];
             i += 1;

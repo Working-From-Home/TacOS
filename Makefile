@@ -60,6 +60,13 @@ run: iso
 		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 		|| true
 
+.PHONY: run-gui
+run-gui: iso
+	@echo "Open the noVNC desktop (port 6080) in the Ports tab, then find QEMU there."
+	@DISPLAY=:1 qemu-system-i386 -cdrom tacos.iso -display gtk -boot d \
+		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+		|| true
+
 .PHONY: clean
 clean:
 	rm -rf boot/boot.o iso/ kernel.elf tacos.iso

@@ -60,6 +60,8 @@ pub fn update_cursor(x: usize, y: usize) {
 
 /// Shifts all lines up by one, and clears the last line.
 pub fn scroll_buffer_up() {
+    // Save the top line to scrollback before it's lost
+    crate::io::scrollback::save_top_line();
     unsafe {
         for row in 1..VGA_HEIGHT {
             for col in 0..VGA_WIDTH {

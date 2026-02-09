@@ -19,5 +19,6 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
     gdt::init();
+    crate::drivers::mouse::init();
     crate::shell::run();
 }
