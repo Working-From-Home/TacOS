@@ -31,6 +31,7 @@ static COMMANDS: &[Command] = &[
     Command { name: b"reboot",   handler: |_| reboot() },
     Command { name: b"printk",   handler: |_| printk_test() },
     Command { name: b"stack",    handler: |_| crate::klib::stack::print_stack() },
+    Command { name: b"stack_test",    handler: |_| stack_test() },
     Command { name: b"gdt",      handler: |_| crate::gdt::print_gdt() },
 ];
 
@@ -59,7 +60,7 @@ pub fn handle_command(input: &'static [u8]) {
     }
 
     let cmd_name = argv[0];
-    
+
     for entry in COMMANDS.iter() {
         if starts_with(cmd_name, entry.name) && cmd_name.len() == entry.name.len() {
             (entry.handler)(argv);
@@ -96,8 +97,8 @@ static mut ARGV: [&'static [u8]; MAX_ARGS] = [&[]; MAX_ARGS];
 fn parse_input(input: &[u8]) -> &'static [&'static [u8]] {
     let buf = unsafe { &mut PARSE_BUF };
     let argv = unsafe { &mut ARGV };
-    
-    let mut out: usize = 0;  // Position in PARSE_BUF
+
+    let mut out: usize = 0; // Position in PARSE_BUF
     let mut argc: usize = 0; // Number of arguments
     let mut i: usize = 0;
     let len = input.len();
@@ -118,7 +119,7 @@ fn parse_input(input: &[u8]) -> &'static [&'static [u8]] {
             // Parse one token
             let start = out;
             i = parse_token(input, i, buf, &mut out);
-            
+
             // Store this argument
             argv[argc] = unsafe { PARSE_BUF.get_unchecked(start..out) };
             argc += 1;
@@ -223,6 +224,22 @@ fn printk_test() {
     printk!("Two new lines...\n\nDone!");
     printkln!("=== end test ===");
     printkln!();
+}
+
+fn stack_test() {
+    #[inline(never)]
+    fn recursive(n: u32) {
+        if n == 0 {
+            crate::klib::stack::print_stack();
+        } else {
+            recursive(n - 1);
+            // Prevent tail-call optimization: force the compiler to keep the frame alive
+            unsafe {
+                core::arch::asm!("", options(nomem, nostack));
+            }
+        }
+    }
+    recursive(5);
 }
 
 fn shutdown() {

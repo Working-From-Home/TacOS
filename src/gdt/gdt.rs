@@ -14,7 +14,6 @@
 ///   6: User Stack   (0x33)
 ///
 /// The GDT is placed at physical address 0x00000800 (required by the subject)
-
 use core::arch::asm;
 use crate::printkln;
 
@@ -36,19 +35,19 @@ const GDT_BASE_ADDR: u32 = 0x00000800;
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct GdtEntry {
-    limit_low: u16,     // Limit bits 0-15
-    base_low: u16,      // Base bits 0-15
-    base_mid: u8,       // Base bits 16-23
-    access: u8,         // Access byte
-    granularity: u8,    // Limit bits 16-19 (low nibble) + flags (high nibble)
-    base_high: u8,      // Base bits 24-31
+    limit_low: u16,  // Limit bits 0-15
+    base_low: u16,   // Base bits 0-15
+    base_mid: u8,    // Base bits 16-23
+    access: u8,      // Access byte
+    granularity: u8, // Limit bits 16-19 (low nibble) + flags (high nibble)
+    base_high: u8,   // Base bits 24-31
 }
 
 /// The GDTR register structure, used by `lgdt`.
 #[repr(C, packed)]
 pub struct GdtPointer {
-    limit: u16,     // Size of GDT - 1
-    base: u32,      // Linear address of GDT
+    limit: u16, // Size of GDT - 1
+    base: u32,  // Linear address of GDT
 }
 
 impl GdtEntry {
@@ -83,9 +82,7 @@ impl GdtEntry {
 
     /// Extract the full 32-bit base address.
     fn base(&self) -> u32 {
-        (self.base_low as u32)
-            | ((self.base_mid as u32) << 16)
-            | ((self.base_high as u32) << 24)
+        (self.base_low as u32) | ((self.base_mid as u32) << 16) | ((self.base_high as u32) << 24)
     }
 
     /// Extract the full 20-bit limit.
@@ -122,11 +119,11 @@ const KERNEL_DATA_ACCESS: u8 = 0b1001_0010; // 0x92 — P=1, DPL=0, S=1, E=0, RW
 /// Present + DPL 0 + Code/Data + Writable + Direction=down (grows down for stack)
 const KERNEL_STACK_ACCESS: u8 = 0b1001_0110; // 0x96 — P=1, DPL=0, S=1, E=0, DC=1, RW=1
 /// Present + DPL 3 + Code/Data + Executable + Readable
-const USER_CODE_ACCESS: u8 = 0b1111_1010;   // 0xFA — P=1, DPL=3, S=1, E=1, RW=1
+const USER_CODE_ACCESS: u8 = 0b1111_1010; // 0xFA — P=1, DPL=3, S=1, E=1, RW=1
 /// Present + DPL 3 + Code/Data + Writable
-const USER_DATA_ACCESS: u8 = 0b1111_0010;   // 0xF2 — P=1, DPL=3, S=1, E=0, RW=1
+const USER_DATA_ACCESS: u8 = 0b1111_0010; // 0xF2 — P=1, DPL=3, S=1, E=0, RW=1
 /// Present + DPL 3 + Code/Data + Writable + Direction=down (grows down for stack)
-const USER_STACK_ACCESS: u8 = 0b1111_0110;  // 0xF6 — P=1, DPL=3, S=1, E=0, DC=1, RW=1
+const USER_STACK_ACCESS: u8 = 0b1111_0110; // 0xF6 — P=1, DPL=3, S=1, E=0, DC=1, RW=1
 
 // ──────────────────────────────────────────────
 //  Flags nibble (upper nibble of granularity byte)
@@ -237,7 +234,12 @@ pub fn print_gdt() {
     let num_entries = ((gdtr_limit as u32) + 1) / 8;
 
     printkln!("=== Global Descriptor Table ===");
-    printkln!("  GDTR: base={:#x}  limit={:#x}  ({} entries)", gdtr_base, gdtr_limit as u32, num_entries);
+    printkln!(
+        "  GDTR: base={:#x}  limit={:#x}  ({} entries)",
+        gdtr_base,
+        gdtr_limit as u32,
+        num_entries
+    );
     printkln!("  Idx  Selector  Base        Limit       Access  Flags  Type");
     printkln!("  ---  --------  ----------  ----------  ------  -----  ----");
 

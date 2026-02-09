@@ -1,4 +1,3 @@
-pub mod cmd;
 pub mod helpers;
 pub mod memory;
 pub mod stack;
