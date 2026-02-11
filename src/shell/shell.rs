@@ -86,7 +86,6 @@ fn help() {
     println!();
 }
 
-// NEW: Parse into argv array instead of single byte slice
 const MAX_ARGS: usize = 16;
 const PARSE_BUF_SIZE: usize = 80;
 
@@ -255,11 +254,10 @@ fn shutdown() {
 
 fn reboot() {
     println!("Rebooting...");
-    unsafe {
-        let mut status = crate::drivers::port::inb(0x64);
-        while status & 0x02 != 0 {
-            status = crate::drivers::port::inb(0x64);
-        }
+
+    let mut status = crate::drivers::port::inb(0x64);
+    while status & 0x02 != 0 {
+       status = crate::drivers::port::inb(0x64);
     }
     outb(0x64, 0xFE);
     loop {

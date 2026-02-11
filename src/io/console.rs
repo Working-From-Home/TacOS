@@ -1,4 +1,4 @@
-use crate::io::{cursor, display};
+use crate::io::display;
 use crate::drivers::vga;
 use crate::klib::string;
 
@@ -11,10 +11,10 @@ pub fn write_line(s: *const u8) {
         unsafe {
             let c = *s.add(i);
             display::write_colored_char(c, color);
-            cursor::move_right();
+            display::move_right();
         }
     }
-    cursor::new_line();
+    display::new_line();
 }
 
 pub fn write_colored_line(s: *const u8, color: u8) {
@@ -23,10 +23,10 @@ pub fn write_colored_line(s: *const u8, color: u8) {
         unsafe {
             let c = *s.add(i);
             display::write_colored_char(c, color);
-            cursor::move_right();
+            display::move_right();
         }
     }
-    cursor::new_line();
+    display::new_line();
 }
 
 pub fn show_welcome_message() {
@@ -38,21 +38,21 @@ pub fn show_welcome_message() {
     write_colored_line(b"   _/      _/            _/    _/    _/  _/        _/    _/        _/         \0".as_ptr(), c);   
     write_colored_line(b"  _/    _/_/_/_/        _/      _/_/_/    _/_/_/    _/_/    _/_/_/      _/    \0".as_ptr(), c);   
 
-    cursor::new_line();
-    cursor::new_line();
-    cursor::new_line();
+    display::new_line();
+    display::new_line();
+    display::new_line();
 }
 
 static mut PROMPT_START_COL: usize = 0;
 
 pub fn show_prompt() {
-    let (x, _) = cursor::get_pos();
+    let (x, _) = display::get_pos();
     unsafe { PROMPT_START_COL = x; }
     let color = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
     let prompt = b"$ ";
     for &c in prompt {
         display::write_colored_char(c, color);
-        cursor::move_right();
+        display::move_right();
     }
 }
 
