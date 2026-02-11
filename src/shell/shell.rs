@@ -198,10 +198,10 @@ fn escape_char(c: u8) -> u8 {
 }
 
 fn tacos() {
-    static mut tacos_counter: u8 = 1;
-    println!("You ate {} tacos!\0", unsafe { tacos_counter });
+    static mut TACOS_COUNTER: u8 = 1;
+    println!("You ate {} tacos!\0", unsafe { TACOS_COUNTER });
     unsafe {
-        tacos_counter += 3;
+        TACOS_COUNTER += 3;
     }
 }
 
