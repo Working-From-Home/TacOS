@@ -6,4 +6,8 @@
 	"shellcheck.customArgs": [
 		"--external-sources"
 	],
+	// to fix intellisence not really working on most code because of #[cfg(target_os = "none")] (used to be able to run the tests via vscode's rust analyser ext)
+	"rust-analyzer.cargo.target": "target-specs/i686-custom.json",
+	"rust-analyzer.cargo.buildScripts.enable": true,
+	"rust-analyzer.check.allTargets": false,
 }

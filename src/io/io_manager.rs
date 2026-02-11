@@ -6,6 +6,7 @@ pub fn handle_key_event(event: KeyEvent) {
         KeyEvent::Char(c) => handle_insert(c),
         KeyEvent::Backspace => handle_delete(),
         KeyEvent::Enter => handle_enter(),
+        KeyEvent::CtrlC => handle_ctrl_c(),
         KeyEvent::ArrowLeft => handle_arrow_left(),
         KeyEvent::ArrowRight => handle_arrow_right(),
         _ => {}
@@ -38,6 +39,14 @@ fn handle_enter() {
     let command = input_buffer::flush();
     cursor::new_line();
     crate::shell::handle_command(command);
+    console::show_prompt();
+}
+
+fn handle_ctrl_c() {
+    // Clear input, print ^C, new prompt
+    input_buffer::flush();
+    display::put_str("^C");
+    cursor::new_line();
     console::show_prompt();
 }
 

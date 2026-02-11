@@ -17,7 +17,8 @@ impl InputBuffer {
 
     /// Inserts a character at the current position in the input buffer.
     pub fn insert_char(&mut self, c: u8) -> bool {
-        if self.len >= BUFFER_SIZE - 1 || self.pos >= BUFFER_SIZE - 1 {
+        let max = crate::io::console::max_input_len().min(BUFFER_SIZE - 1);
+        if self.len >= max || self.pos >= max {
             return false;
         }
 
@@ -30,7 +31,7 @@ impl InputBuffer {
             i -= 1;
         }
         
-        self.buffer[self.pos] = c;
+        unsafe { *self.buffer.get_unchecked_mut(self.pos) = c; }
         self.pos += 1;
         self.len += 1;
 
@@ -58,7 +59,7 @@ impl InputBuffer {
         }
 
         // Clear the last character
-        self.buffer[self.len - 1] = 0;
+        unsafe { *self.buffer.get_unchecked_mut(self.len - 1) = 0; }
 
         self.len -= 1;
 

@@ -19,6 +19,9 @@ define ALL_HELP_INFO
 #   setup-42-linux           # setup the 42 Linux environment (compile and install everything fine...except grub-pc still missing)
 #   vm-42-start              # start the Vagrant VM
 #   vm-42-delete             # delete the Vagrant VM
+#
+#   format                   # format the code using rustfmt
+#   test                     # run unit tests on host
 endef
 
 .PHONY: all
@@ -28,13 +31,18 @@ all: iso
 help:
 	${ALL_HELP_INFO}
 
+CARGO_KERNEL = cargo -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem
+KERNEL_TARGET = target-specs/i686-custom.json
+
 .PHONY: build
 build:
-	cargo rustc --release --target target-specs/i686-custom.json -- --emit=obj
+	@cargo clean -p tacos --release --target $(KERNEL_TARGET) 2>/dev/null || true
+	RUSTFLAGS="-C force-frame-pointers=yes" $(CARGO_KERNEL) rustc --release --target $(KERNEL_TARGET) --lib -- --emit=obj
+	RUSTFLAGS="-C force-frame-pointers=yes" $(CARGO_KERNEL) rustc --release --target $(KERNEL_TARGET) --bin tacos -- --emit=obj
 
 .PHONY: kernel
 kernel:
-	cargo build --release
+	RUSTFLAGS="-C force-frame-pointers=yes" $(CARGO_KERNEL) build --release --target $(KERNEL_TARGET)
 
 .PHONY: boot
 boot:
@@ -42,7 +50,7 @@ boot:
 
 .PHONY: link
 link: build boot
-	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot.o target/i686-custom/release/deps/*.o
+	ld -m elf_i386 -T linker.ld -o kernel.elf boot/boot.o target/i686-custom/release/deps/tacos-*.o
 
 .PHONY: iso
 iso: link
@@ -53,7 +61,7 @@ iso: link
 
 .PHONY: run
 run: iso
-	@qemu-system-i386 -cdrom tacos.iso -display curses -device isa-debug-exit,iobase=0xf4,iosize=0x04 || true
+	@qemu-system-i386 -cdrom tacos.iso -display curses -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 || true
 
 .PHONY: clean
 clean:
@@ -75,6 +83,7 @@ check-tools:
 setup-42-linux:
 	@./setup-42-linux.sh
 
+.PHONY: vm-42-start
 vm-42-start:
 # @vboxmanage setproperty machinefolder ~/sgoinfre
 	@VBoxManage list systemproperties | grep "Default machine folder:"
@@ -82,7 +91,15 @@ vm-42-start:
 	@VBoxManage list systemproperties | grep "Default machine folder:"
 	@vagrant up
 
+.PHONY: vm-42-delete
 vm-42-delete:
 	@vagrant destroy -f
 	rm -rf ./vagrant/
 
+.PHONY: format
+format:
+	cargo fmt
+
+.PHONY: test
+test:
+	cargo test --lib --target i686-unknown-linux-gnu
