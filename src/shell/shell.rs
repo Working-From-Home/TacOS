@@ -1,6 +1,7 @@
 use crate::drivers::keyboard;
 use crate::drivers::port::outb;
 use crate::io::{console, io_manager};
+use crate::shell::builtin;
 use crate::{print, println, printk, printkln};
 use core::arch::asm;
 
@@ -24,7 +25,7 @@ struct Command {
 
 static COMMANDS: &[Command] = &[
     Command { name: b"help",     handler: |_| help() },
-    Command { name: b"echo",     handler: super::builtin::echo::echo },
+    Command { name: b"echo",     handler: builtin::echo::echo },
     Command { name: b"tacos",    handler: |_| tacos() },
     Command { name: b"shutdown", handler: |_| shutdown() },
     Command { name: b"halt",     handler: |_| shutdown() },
@@ -33,7 +34,7 @@ static COMMANDS: &[Command] = &[
     Command { name: b"stack",    handler: |_| crate::klib::stack::print_stack() },
     Command { name: b"stack_test",    handler: |_| stack_test() },
     Command { name: b"gdt",      handler: |_| crate::gdt::print_gdt() },
-    Command { name: b"dmesg",    handler: super::builtin::dmesg::dmesg },
+    Command { name: b"dmesg",    handler: builtin::dmesg::dmesg },
 ];
 
 fn starts_with(haystack: &[u8], needle: &[u8]) -> bool {

@@ -20,7 +20,7 @@ fn handle_insert(c: char) {
         let start_pos = input_buffer::get_pos() - 1;
         let cursor_y = display::get_pos().1;
         let input_offset = console::input_start_col();
-        display::write_buffer_line(buffer, len, start_pos, cursor_y, 0, input_offset);
+        display::redraw_input_line(buffer, len, start_pos, cursor_y, 0, input_offset);
         display::move_right();
     }
 }
@@ -32,7 +32,7 @@ fn handle_delete() {
         let start_pos = input_buffer::get_pos() - 1;
         let cursor_y = display::get_pos().1;
         let input_offset = console::input_start_col();
-        display::write_buffer_line(buffer, len, start_pos, cursor_y, 1, input_offset);
+        display::redraw_input_line(buffer, len, start_pos, cursor_y, 1, input_offset);
         display::move_left();
     }
 }

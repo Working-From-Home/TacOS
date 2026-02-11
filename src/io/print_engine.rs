@@ -26,7 +26,7 @@ enum Sink {
 }
 
 #[inline]
-fn write_char(c: u8, sink: Sink) {
+fn emit_char(c: u8, sink: Sink) {
     match sink {
         Sink::Display => display::put_char(c),
         Sink::Klog => klog::log_byte(c),
@@ -34,7 +34,7 @@ fn write_char(c: u8, sink: Sink) {
 }
 
 #[inline]
-fn write_str(s: &str, sink: Sink) {
+fn emit_str(s: &str, sink: Sink) {
     match sink {
         Sink::Display => display::put_str(s),
         Sink::Klog => klog::log_str(s),
@@ -42,7 +42,7 @@ fn write_str(s: &str, sink: Sink) {
 }
 
 #[inline]
-fn write_bytes(bytes: &[u8], sink: Sink) {
+fn emit_bytes(bytes: &[u8], sink: Sink) {
     match sink {
         Sink::Display => display::put_bytes(bytes),
         Sink::Klog => klog::log_bytes(bytes),
@@ -137,7 +137,7 @@ fn write_buf(buf: &[u8; ITOA_BUF_SIZE], start: usize, sink: Sink) {
     let ptr = buf.as_ptr();
     let mut i = start;
     while i < ITOA_BUF_SIZE {
-        unsafe { write_char(*ptr.add(i), sink); }
+        unsafe { emit_char(*ptr.add(i), sink); }
         i += 1;
     }
 }
@@ -166,22 +166,22 @@ fn write_u32(val: u32, spec: Spec, sink: Sink) {
             write_buf(&buf, s, sink);
         }
         Spec::HexAlt => {
-            write_str("0x", sink);
+            emit_str("0x", sink);
             let s = u32_to_base(val, 16, false, &mut buf);
             write_buf(&buf, s, sink);
         }
         Spec::HexUpperAlt => {
-            write_str("0X", sink);
+            emit_str("0X", sink);
             let s = u32_to_base(val, 16, true, &mut buf);
             write_buf(&buf, s, sink);
         }
         Spec::BinaryAlt => {
-            write_str("0b", sink);
+            emit_str("0b", sink);
             let s = u32_to_base(val, 2, false, &mut buf);
             write_buf(&buf, s, sink);
         }
         Spec::OctalAlt => {
-            write_str("0o", sink);
+            emit_str("0o", sink);
             let s = u32_to_base(val, 8, false, &mut buf);
             write_buf(&buf, s, sink);
         }
@@ -190,7 +190,7 @@ fn write_u32(val: u32, spec: Spec, sink: Sink) {
 
 fn write_i32(val: i32, spec: Spec, sink: Sink) {
     if val < 0 {
-        write_char(b'-', sink);
+        emit_char(b'-', sink);
         write_u32((!(val as u32)).wrapping_add(1), spec, sink);
     } else {
         write_u32(val as u32, spec, sink);
@@ -203,13 +203,13 @@ fn write_i32(val: i32, spec: Spec, sink: Sink) {
 
 fn write_arg(arg: &PrintArg, spec: Spec, sink: Sink) {
     match arg {
-        PrintArg::Str(s)     => write_str(s, sink),
-        PrintArg::Bytes(b)  => write_bytes(b, sink),
-        PrintArg::Char(c)      => write_char(*c, sink),
-        PrintArg::I32(v)      => write_i32(*v, spec, sink),
-        PrintArg::U32(v)      => write_u32(*v, spec, sink),
+        PrintArg::Str(s)    => emit_str(s, sink),
+        PrintArg::Bytes(b)  => emit_bytes(b, sink),
+        PrintArg::Char(c)   => emit_char(*c, sink),
+        PrintArg::I32(v)    => write_i32(*v, spec, sink),
+        PrintArg::U32(v)    => write_u32(*v, spec, sink),
         PrintArg::Usize(v)  => write_u32(*v as u32, spec, sink),
-        PrintArg::Bool(v)    => write_str(if *v { "true" } else { "false" }, sink),
+        PrintArg::Bool(v)   => emit_str(if *v { "true" } else { "false" }, sink),
     }
 }
 
@@ -250,7 +250,7 @@ fn format(fmt: &str, args: &[PrintArg], sink: Sink) {
 
         if ch == b'{' {
             if i + 1 < len && unsafe { *bytes.add(i + 1) } == b'{' {
-                write_char(b'{', sink); i += 2; continue;
+                emit_char(b'{', sink); i += 2; continue;
             }
             let spec_start = i + 1;
             let mut j = spec_start;
@@ -263,9 +263,9 @@ fn format(fmt: &str, args: &[PrintArg], sink: Sink) {
             i = j + 1; continue;
         }
         if ch == b'}' && i + 1 < len && unsafe { *bytes.add(i + 1) } == b'}' {
-            write_char(b'}', sink); i += 2; continue;
+            emit_char(b'}', sink); i += 2; continue;
         }
-        write_char(ch, sink);
+        emit_char(ch, sink);
         i += 1;
     }
 }

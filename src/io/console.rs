@@ -1,42 +1,14 @@
 use crate::io::display;
 use crate::drivers::vga;
-use crate::klib::string;
-
-pub fn write_line(s: *const u8) {
-    let len = string::strlen(s);
-
-    let color = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
-
-    for i in 0..len {
-        unsafe {
-            let c = *s.add(i);
-            display::write_colored_char(c, color);
-            display::move_right();
-        }
-    }
-    display::new_line();
-}
-
-pub fn write_colored_line(s: *const u8, color: u8) {
-    let len = string::strlen(s);
-    for i in 0..len {
-        unsafe {
-            let c = *s.add(i);
-            display::write_colored_char(c, color);
-            display::move_right();
-        }
-    }
-    display::new_line();
-}
 
 pub fn show_welcome_message() {
     let c = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
 
-    write_colored_line(b"  _/  _/      _/_/      _/_/_/_/_/                      _/_/      _/_/_/    _/\0".as_ptr(), c);   
-    write_colored_line(b" _/  _/    _/    _/        _/      _/_/_/    _/_/_/  _/    _/  _/          _/ \0".as_ptr(), c);   
-    write_colored_line(b"_/_/_/_/      _/          _/    _/    _/  _/        _/    _/    _/_/      _/  \0".as_ptr(), c);   
-    write_colored_line(b"   _/      _/            _/    _/    _/  _/        _/    _/        _/         \0".as_ptr(), c);   
-    write_colored_line(b"  _/    _/_/_/_/        _/      _/_/_/    _/_/_/    _/_/    _/_/_/      _/    \0".as_ptr(), c);   
+    display::put_colored_str("  _/  _/      _/_/      _/_/_/_/_/                      _/_/      _/_/_/    _/\n", c);
+    display::put_colored_str(" _/  _/    _/    _/        _/      _/_/_/    _/_/_/  _/    _/  _/          _/ \n", c);
+    display::put_colored_str("_/_/_/_/      _/          _/    _/    _/  _/        _/    _/    _/_/      _/  \n", c);
+    display::put_colored_str("   _/      _/            _/    _/    _/  _/        _/    _/        _/         \n", c);
+    display::put_colored_str("  _/    _/_/_/_/        _/      _/_/_/    _/_/_/    _/_/    _/_/_/      _/    \n", c);
 
     display::new_line();
     display::new_line();
@@ -49,11 +21,7 @@ pub fn show_prompt() {
     let (x, _) = display::get_pos();
     unsafe { PROMPT_START_COL = x; }
     let color = vga::get_color_code(vga::Color::LightGray, vga::Color::Black);
-    let prompt = b"$ ";
-    for &c in prompt {
-        display::write_colored_char(c, color);
-        display::move_right();
-    }
+    display::put_colored_str("$ ", color);
 }
 
 pub const PROMPT_LEN: usize = 2; // "$ "
@@ -73,7 +41,3 @@ pub fn max_input_len() -> usize {
     }
 }
 
-pub fn show_error(msg: &str) {
-    let color: u8 = vga::get_color_code(vga::Color::Red, vga::Color::Black);
-    write_colored_line(msg.as_ptr(), color);
-}
