@@ -109,62 +109,62 @@ impl InputBuffer {
 
 pub static mut INPUT: InputBuffer = InputBuffer::new();
 
-pub fn insert_char(c: u8) -> bool{
+pub fn insert_char(c: u8) -> bool {
     unsafe {
-        INPUT.insert_char(c)
+        (*&raw mut INPUT).insert_char(c)
     }
 }
 
-pub fn remove_char() -> bool{
+pub fn remove_char() -> bool {
     unsafe {
-        INPUT.remove_char()
+        (*&raw mut INPUT).remove_char()
     }
 }
 
 pub fn can_move_left() -> bool {
     unsafe {
-        INPUT.can_move_left()
+        (*&raw mut INPUT).can_move_left()
     }
 }
 
 pub fn can_move_right() -> bool {
     unsafe {
-        INPUT.can_move_right()
+        (*&raw mut INPUT).can_move_right()
     }
 }
 
 pub fn move_left() {
     unsafe {
-        INPUT.move_left();
+        (*&raw mut INPUT).move_left();
     }
 }
 
 pub fn move_right() {
     unsafe {
-        INPUT.move_right();
+        (*&raw mut INPUT).move_right();
     }
 }
 
 pub fn flush() -> &'static [u8] {
     unsafe {
-        INPUT.flush()
+        (*&raw mut INPUT).flush()
     }
 }
 
 pub fn get_buffer() -> &'static [u8] {
     unsafe {
-        INPUT.get_buffer()
+        (*&raw const INPUT).get_buffer()
     }
 }
 
 pub fn get_len() -> usize {
     unsafe {
-        INPUT.get_len()
+        (*&raw const INPUT).get_len()
     }
 }
 
 pub fn get_pos() -> usize {
     unsafe {
-        INPUT.get_pos()
+        (*&raw const INPUT).get_pos()
     }
 }
