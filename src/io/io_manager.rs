@@ -29,7 +29,7 @@ fn handle_delete() {
     if input_buffer::remove_char() {
         let buffer = input_buffer::get_buffer();
         let len = input_buffer::get_len();
-        let start_pos = input_buffer::get_pos() - 1;
+        let start_pos = input_buffer::get_pos();
         let cursor_y = display::get_pos().1;
         let input_offset = console::input_start_col();
         display::redraw_input_line(buffer, len, start_pos, cursor_y, 1, input_offset);
