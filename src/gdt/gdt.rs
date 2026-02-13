@@ -1,54 +1,116 @@
-/// GDT — Global Descriptor Table
+/// Global Descriptor Table (GDT)
+/// 
+/// 
+/// The GDT is a fundamental data structure in x86 protected mode that defines memory segments.
+/// Even though modern operating systems use paging for memory management and isolation, the GDT
+/// is still required to set up the CPU's segmentation model.
+/// 
+/// Each entry in the GDT describes a segment's base address, limit, and access rights. The CPU
+/// uses this information to translate logical addresses into linear addresses and to enforce
+/// access control based on privilege levels.
+/// 
+/// A segment descriptor is packed into 64 bits as follows:
+/// 
+///   63               56 55      52 51          48 47                 40 39                   32
+///  +-------------------+----------+--------------+---------------------+-----------------------+
+///  |    Base[31:24]    |  Flags   | Limit[19:16] |        Access       |      Base [23:16]     |
+///  +-------------------+----------+--------------+---------------------+-----------------------+
+///  +---------------------------------------------+---------------------------------------------+
+///  |                 Base [15:0]                 |                 Limit [15:0]                |
+///  +---------------------------------------------+---------------------------------------------+
+///   31                                         16 15                                          0
+/// 
+/// Field breakdown:
+/// 
+/// - Base (32 bits, split across bytes 2-4 and 7):
+///     Defines the linear base address of the segment.
+/// 
+/// - Limit (20 bits, split across bytes 0-1 and 6):
+///     Defines the maximum offset allowed within the segment.
+///     If the flags Granularity bit is set, limit is in 4KB pages instead of bytes.
+/// 
+/// - Access byte (8 bits, byte 5):
+///     7   (P)     Present                     Must be 1 for a valid segment
+///     6–5 (DPL)   Descriptor Privilege Level  0 = ring 0 (kernel), 3 = ring 3 (user)
+///     4   (S)     Descriptor type             1 = code/data segment, 0 = system segment
+///     3   (E)     Executable                  1 = code segment, 0 = data segment
+///     2   (DC)    Direction / Conforming      Data: 0 = grows up, 1 = grows down
+///                                             Code: 0 = non-conforming, 1 = conforming
+///     1   (RW)    Readable / Writable         Data: 0 = non-writable, 1 = writable
+///                                             Code: 0 = non-readable, 1 = readable
+///     0   (A)     Accessed                    Set by CPU on access (initialize to 0)
 ///
-/// The GDT defines memory segments for the CPU in protected mode.
-/// Each entry is 8 bytes and describes the base address, limit,
-/// and access permissions of a memory segment.
-///
-/// Our GDT has 7 entries:
-///   0: Null descriptor (required by CPU)
-///   1: Kernel Code  (0x08)
-///   2: Kernel Data  (0x10)
-///   3: Kernel Stack (0x18)
-///   4: User Code    (0x23)
-///   5: User Data    (0x2B)
-///   6: User Stack   (0x33)
-///
-/// The GDT is placed at physical address 0x00000800 (required by the subject)
+/// - Flags (4 bits, bits 52–55):
+///     3   (G)     Granularity                 0 = limit in bytes, 1 = limit in 4KB pages
+///     2   (D/B)   Default operand size        0 = 16-bit segment, 1 = 32-bit segment
+///     1   (L)     Long mode (IA-32e only)     0 = disabled (protected mode), 1 = 64-bit code segment
+///     0   (AVL)   Available for software      Ignored by the CPU
+/// 
+/// This GDT contains 7 entries at physical address 0x00000800:
+///     0x00: Null descriptor (mandatory)
+///     0x08: Kernel Code
+///     0x10: Kernel Data
+///     0x18: Kernel Stack
+///     0x20: User Code
+///     0x28: User Data
+///     0x30: User Stack
+
 use core::arch::asm;
 use crate::println;
+
+/// -----------------------
+/// GDT Constants
+/// -----------------------
 
 /// Number of GDT entries
 const GDT_ENTRIES: usize = 7;
 
-/// GDT base address required by subject
+/// GDT physical address
 const GDT_BASE_ADDR: u32 = 0x00000800;
 
-/// A single GDT entry (segment descriptor), 8 bytes.
-///
-/// Layout (bit fields packed into 8 bytes):
-///   - Limit [0:15]        (bytes 0-1)
-///   - Base  [0:15]        (bytes 2-3)
-///   - Base  [16:23]       (byte 4)
-///   - Access byte         (byte 5)
-///   - Limit [16:19] + Flags (byte 6): low nibble = limit[16:19], high nibble = flags
-///   - Base  [24:31]       (byte 7)
+/// Access bytes values for different segment types (P/DPL/S/E/DC/RW/A):
+const KERNEL_CODE_ACCESS:   u8 = 0b1001_1010; // 0x9A — P=1, DPL=0, S=1, E=1, RW=1
+const KERNEL_DATA_ACCESS:   u8 = 0b1001_0010; // 0x92 — P=1, DPL=0, S=1, E=0, RW=1
+const KERNEL_STACK_ACCESS:  u8 = 0b1001_0110; // 0x96 — P=1, DPL=0, S=1, E=0, DC=1, RW=1
+const USER_CODE_ACCESS:     u8 = 0b1111_1010; // 0xFA — P=1, DPL=3, S=1, E=1, RW=1
+const USER_DATA_ACCESS:     u8 = 0b1111_0010; // 0xF2 — P=1, DPL=3, S=1, E=0, RW=1
+const USER_STACK_ACCESS:    u8 = 0b1111_0110; // 0xF6 — P=1, DPL=3, S=1, E=0, DC=1, RW=1
+
+/// Flags for 32-bit protected mode segments with 4KB granularity
+const FLAGS_32BIT_4K: u8 = 0b1100;
+
+/// -----------------------
+/// GDT Data Structures
+/// -----------------------
+
+/// 8-byte GDT segment descriptor
+/// 
+/// Must be packed to match the CPU layout
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct GdtEntry {
-    limit_low: u16,  // Limit bits 0-15
-    base_low: u16,   // Base bits 0-15
-    base_mid: u8,    // Base bits 16-23
-    access: u8,      // Access byte
-    granularity: u8, // Limit bits 16-19 (low nibble) + flags (high nibble)
-    base_high: u8,   // Base bits 24-31
+    limit_low: u16,
+    base_low: u16,
+    base_mid: u8,
+    access: u8,
+    granularity: u8,
+    base_high: u8,
 }
 
-/// The GDTR register structure, used by `lgdt`.
+/// GDTR structure for the `lgdt` instruction
+/// 
+/// Must be packed and aligned as required by the CPU
+/// - `limit` : size of the GDT in bytes minus 1
+/// - `base`  : linear base address of the GDT
 #[repr(C, packed)]
 pub struct GdtPointer {
-    limit: u16, // Size of GDT - 1
-    base: u32,  // Linear address of GDT
+    limit: u16,
+    base: u32,
 }
+
+/// -----------------------
+/// GDT Functions
+/// -----------------------
 
 impl GdtEntry {
     /// Creates a null GDT entry.
@@ -63,12 +125,7 @@ impl GdtEntry {
         }
     }
 
-    /// Creates a GDT entry from raw components.
-    ///
-    /// - `base`:   32-bit linear base address of the segment
-    /// - `limit`:  20-bit segment limit (in units defined by granularity)
-    /// - `access`: Access byte (Present, DPL, Type, etc.)
-    /// - `flags`:  4-bit flags (Granularity, Size, etc.) — upper nibble of granularity byte
+    /// Creates a GDT entry.
     const fn new(base: u32, limit: u32, access: u8, flags: u8) -> Self {
         GdtEntry {
             limit_low: (limit & 0xFFFF) as u16,
@@ -80,92 +137,42 @@ impl GdtEntry {
         }
     }
 
-    /// Extract the full 32-bit base address.
+    /// Extracts the full 32-bit base address.
     fn base(&self) -> u32 {
         (self.base_low as u32) | ((self.base_mid as u32) << 16) | ((self.base_high as u32) << 24)
     }
 
-    /// Extract the full 20-bit limit.
+    /// Extracts the full 20-bit limit.
     fn limit(&self) -> u32 {
         (self.limit_low as u32) | (((self.granularity & 0x0F) as u32) << 16)
     }
 
-    /// Extract the 4-bit flags (upper nibble of granularity byte).
+    /// Extracts the 4-bit flags.
     fn flags(&self) -> u8 {
         (self.granularity >> 4) & 0x0F
     }
 }
 
-// ──────────────────────────────────────────────
-//  Access byte bits
-// ──────────────────────────────────────────────
-//
-//  Bit 7    : Present (P)         — 1 = segment is present in memory
-//  Bit 6-5  : DPL (Descriptor Privilege Level) — 0 = kernel, 3 = user
-//  Bit 4    : Descriptor type (S) — 1 = code/data segment, 0 = system segment
-//  Bit 3    : Executable (E)      — 1 = code, 0 = data
-//  Bit 2    : Direction/Conforming
-//               Data: 0=grows up, 1=grows down
-//               Code: 0=non-conforming, 1=conforming
-//  Bit 1    : Readable/Writable
-//               Code: 1=readable
-//               Data: 1=writable
-//  Bit 0    : Accessed (A)        — CPU sets this, init to 0
 
-/// Present + DPL 0 + Code/Data + Executable + Readable
-const KERNEL_CODE_ACCESS: u8 = 0b1001_1010; // 0x9A — P=1, DPL=0, S=1, E=1, RW=1
-/// Present + DPL 0 + Code/Data + Writable
-const KERNEL_DATA_ACCESS: u8 = 0b1001_0010; // 0x92 — P=1, DPL=0, S=1, E=0, RW=1
-/// Present + DPL 0 + Code/Data + Writable + Direction=down (grows down for stack)
-const KERNEL_STACK_ACCESS: u8 = 0b1001_0110; // 0x96 — P=1, DPL=0, S=1, E=0, DC=1, RW=1
-/// Present + DPL 3 + Code/Data + Executable + Readable
-const USER_CODE_ACCESS: u8 = 0b1111_1010; // 0xFA — P=1, DPL=3, S=1, E=1, RW=1
-/// Present + DPL 3 + Code/Data + Writable
-const USER_DATA_ACCESS: u8 = 0b1111_0010; // 0xF2 — P=1, DPL=3, S=1, E=0, RW=1
-/// Present + DPL 3 + Code/Data + Writable + Direction=down (grows down for stack)
-const USER_STACK_ACCESS: u8 = 0b1111_0110; // 0xF6 — P=1, DPL=3, S=1, E=0, DC=1, RW=1
-
-// ──────────────────────────────────────────────
-//  Flags nibble (upper nibble of granularity byte)
-// ──────────────────────────────────────────────
-//
-//  Bit 3 (7): Granularity — 0=byte, 1=4KiB pages
-//  Bit 2 (6): Size        — 0=16-bit, 1=32-bit protected mode
-//  Bit 1 (5): Long mode   — 0 for 32-bit
-//  Bit 0 (4): Available   — 0
-
-/// Granularity=4KiB pages, 32-bit protected mode
-const FLAGS_32BIT_4K: u8 = 0b1100; // 0xC — G=1, D/B=1
-
-/// Initializes the GDT at address 0x00000800 and loads it.
+/// GDT initialization function
 ///
-/// This writes 7 segment descriptors directly to the GDT memory region,
-/// then calls `lgdt` followed by a far jump to reload CS and the other
-/// segment registers.
+/// Creates 7 segment descriptors, copies them to physical address 0x00000800,
+/// and reloads the GDTR and segment registers.
 pub fn init() {
-    // Build GDT entries on the stack first
     let gdt: [GdtEntry; GDT_ENTRIES] = [
-        // 0x00: Null descriptor (required)
         GdtEntry::null(),
-        // 0x08: Kernel Code — base=0, limit=0xFFFFF (4GB with 4K granularity)
         GdtEntry::new(0x00000000, 0xFFFFF, KERNEL_CODE_ACCESS, FLAGS_32BIT_4K),
-        // 0x10: Kernel Data — base=0, limit=0xFFFFF
         GdtEntry::new(0x00000000, 0xFFFFF, KERNEL_DATA_ACCESS, FLAGS_32BIT_4K),
-        // 0x18: Kernel Stack — base=0, limit=0xFFFFF (grows down)
         GdtEntry::new(0x00000000, 0xFFFFF, KERNEL_STACK_ACCESS, FLAGS_32BIT_4K),
-        // 0x20: User Code — base=0, limit=0xFFFFF
         GdtEntry::new(0x00000000, 0xFFFFF, USER_CODE_ACCESS, FLAGS_32BIT_4K),
-        // 0x28: User Data — base=0, limit=0xFFFFF
         GdtEntry::new(0x00000000, 0xFFFFF, USER_DATA_ACCESS, FLAGS_32BIT_4K),
-        // 0x30: User Stack — base=0, limit=0xFFFFF (grows down)
         GdtEntry::new(0x00000000, 0xFFFFF, USER_STACK_ACCESS, FLAGS_32BIT_4K),
     ];
 
-    // Copy GDT to the required physical address 0x00000800
     unsafe {
         let src = gdt.as_ptr() as *const u8;
         let dst = GDT_BASE_ADDR as *mut u8;
-        let size = GDT_ENTRIES * 8; // Each entry is 8 bytes
+        let size = GDT_ENTRIES * 8;
         let mut i = 0;
         while i < size {
             *dst.add(i) = *src.add(i);
@@ -173,44 +180,65 @@ pub fn init() {
         }
     }
 
-    // Create the GDTR pointer
     let gdt_ptr = GdtPointer {
         limit: ((GDT_ENTRIES * 8) - 1) as u16,
         base: GDT_BASE_ADDR,
     };
 
-    // Load the GDT and reload segment registers
     unsafe {
         load_gdt(&gdt_ptr);
     }
 }
 
-/// Loads the GDTR and reloads all segment registers.
+/// Loads the GDT into the CPU and reloads all segment registers.
 ///
-/// After `lgdt`, we must reload CS via a far jump (ljmp),
-/// and then reload DS, ES, FS, GS, SS with the kernel data segment selector.
-/// The kernel stack segment selector is loaded into SS.
+/// This function performs the critical steps required after defining a new GDT:
+///
+/// 1. **Load GDTR**: Executes `lgdt` to load the GDT base address and limit into
+///    the CPU's GDTR register.
+///
+/// 2. **Reload CS**: Performs a far jump (`ljmp`) to reload the Code Segment register.
+///    This is mandatory because CS cannot be directly modified with `mov`.
+///    The far jump forces the CPU to fetch the new CS descriptor from the GDT.
+///
+/// 3. **Reload Data Segments**: Updates DS, ES, FS, GS with the kernel data selector (0x10).
+///    These registers cache segment descriptors and must be explicitly reloaded.
+///
+/// 4. **Reload Stack Segment**: Updates SS with the kernel stack selector (0x18).
+///
+/// After this function completes, the CPU is running in protected mode with all
+/// segment registers pointing to the appropriate GDT entries. The kernel operates
+/// in ring 0 with flat memory model (all segments span 0-4GB).
+///
+/// # Safety
+///
+/// This function is unsafe because:
+/// - It directly manipulates CPU segment registers via inline assembly
+/// - Invalid selectors or GDT configuration will cause a General Protection Fault
+/// - Must only be called during kernel initialization with interrupts disabled
 unsafe fn load_gdt(gdt_ptr: &GdtPointer) {
     asm!(
+        // Load the GDTR with the address of our GDT
         "lgdt ({gdt_ptr})",
 
-        // Reload CS by performing a far jump
-        // 0x08 = kernel code segment selector
+        // Reload CS with the new GDT's kernel code segment (0x08)
         "ljmp $0x08, $2f",
         "2:",
 
-        // Reload data segment registers with kernel data selector (0x10)
+        // Reload data segment registers with kernel data segment selector (0x10)
         "movw $0x10, %ax",
         "movw %ax, %ds",
         "movw %ax, %es",
         "movw %ax, %fs",
         "movw %ax, %gs",
 
-        // Load kernel stack segment (0x18) into SS
+        // Load kernel stack segment selector (0x18) into SS
         "movw $0x18, %ax",
         "movw %ax, %ss",
 
+        // Pass the GdtPointer address as a 32-bit register input to the assembly block
         gdt_ptr = in(reg) gdt_ptr as *const GdtPointer as u32,
+        // Use AT&T syntax for the inline assembly (GAS-compatible)
         options(att_syntax)
     );
 }
