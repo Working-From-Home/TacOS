@@ -281,8 +281,7 @@ pub fn print_gdt() {
         "User Stack",
     ];
 
-    let mut i: usize = 0;
-    while i < GDT_ENTRIES {
+    for i in 0..GDT_ENTRIES {
         // Read from the GDT at its fixed address
         let entry = unsafe {
             let ptr = (GDT_BASE_ADDR as *const GdtEntry).add(i);
@@ -305,8 +304,6 @@ pub fn print_gdt() {
             flags as u32,
             names[i]
         );
-
-        i += 1;
     }
     println!("=== End GDT ===");
 }
