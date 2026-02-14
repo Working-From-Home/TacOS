@@ -1,6 +1,7 @@
 use crate::drivers::keyboard;
 use crate::drivers::port::outb;
-use crate::io::{console, io_manager};
+use crate::io::io_manager;
+use crate::shell::console;
 use crate::shell::builtin;
 use crate::{print, println, printk, printkln};
 use core::arch::asm;

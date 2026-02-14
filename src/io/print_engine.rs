@@ -1,10 +1,6 @@
 /// Shared print engine for `print!` and `printk!`.
 ///
-/// Both macro families share the same runtime format parser and
-/// number-to-string (itoa) routines.  The only difference is the
-/// output *sink*: VGA display vs. kernel log ring buffer.
-///
-/// Supported format specifiers:
+/// Supports format specifiers:
 ///   {}    — default (decimal for integers, as-is for strings/chars/bools)
 ///   {:x}  — hexadecimal lowercase       {:#x} — with "0x" prefix
 ///   {:X}  — hexadecimal uppercase       {:#X} — with "0X" prefix
@@ -12,40 +8,42 @@
 ///   {:o}  — octal                       {:#o} — with "0o" prefix
 ///   {{    — literal '{'
 ///   }}    — literal '}'
-///
+
 use crate::io::{display, klog};
 
 // ──────────────────────────────────────────────
-//  Output sink
+//  Output sink — controls where output is sent
 // ──────────────────────────────────────────────
 
+/// Selects which output backends receive the formatted text.
+///
+/// To add a new backend (e.g. serial), add a variant here,
+/// update `to_display()` / `to_klog()` (and add `to_serial()`),
+/// then update the three `emit_*` helpers below. Nothing else changes.
 #[derive(Copy, Clone, PartialEq)]
-enum Sink {
-    Display,
-    Klog,
+pub enum Sink {
+    Display,    // VGA display only (user-facing output: echo, dmesg dump, …)
+    Klog,       // Kernel log ring buffer only (silent logging, no screen output)
+    Kernel,     // VGA display AND kernel log ring buffer (kernel messages: printk)
 }
 
-#[inline]
-fn emit_char(c: u8, sink: Sink) {
-    match sink {
-        Sink::Display => display::put_char(c),
-        Sink::Klog => klog::log_byte(c),
+impl Sink {
+    /// Should this sink write to the VGA display?
+    #[inline(always)]
+    fn to_display(self) -> bool {
+        match self {
+            Sink::Display | Sink::Kernel => true,
+            Sink::Klog => false,
+        }
     }
-}
 
-#[inline]
-fn emit_str(s: &str, sink: Sink) {
-    match sink {
-        Sink::Display => display::put_str(s),
-        Sink::Klog => klog::log_str(s),
-    }
-}
-
-#[inline]
-fn emit_bytes(bytes: &[u8], sink: Sink) {
-    match sink {
-        Sink::Display => display::put_bytes(bytes),
-        Sink::Klog => klog::log_bytes(bytes),
+    /// Should this sink write to the kernel log ring buffer?
+    #[inline(always)]
+    fn to_klog(self) -> bool {
+        match self {
+            Sink::Klog | Sink::Kernel => true,
+            Sink::Display => false,
+        }
     }
 }
 
@@ -99,6 +97,39 @@ impl<'a> From<char> for PrintArg<'a> {
 }
 
 // ──────────────────────────────────────────────
+//  Sink-aware emit helpers
+// ──────────────────────────────────────────────
+
+/// Emit a single byte (raw glyph, no control-char interpretation).
+#[inline]
+fn emit_raw(c: u8, sink: Sink) {
+    if sink.to_display() { display::put_char(c); }
+    if sink.to_klog()    { klog::log_byte(c); }
+}
+
+/// Emit a string (with control-char interpretation on the display side).
+#[inline]
+fn emit_str(s: &str, sink: Sink) {
+    if sink.to_display() { display::put_str(s); }
+    if sink.to_klog()    { klog::log_str(s); }
+}
+
+/// Emit a byte slice (with control-char interpretation on the display side).
+#[inline]
+fn emit_bytes(b: &[u8], sink: Sink) {
+    if sink.to_display() { display::put_bytes(b); }
+    if sink.to_klog()    { klog::log_bytes(b); }
+}
+
+/// Emit a single byte with control-char interpretation (\n, \t, etc.).
+/// Used for literal characters from the format string.
+#[inline]
+fn emit_byte(c: u8, sink: Sink) {
+    if sink.to_display() { display::write_byte(c, crate::drivers::vga::DEFAULT_COLOR); }
+    if sink.to_klog()    { klog::log_byte(c); }
+}
+
+// ──────────────────────────────────────────────
 //  itoa — number → string on a stack buffer
 // ──────────────────────────────────────────────
 
@@ -106,92 +137,78 @@ const ITOA_BUF_SIZE: usize = 34; // 32-bit binary + sign
 
 #[derive(Copy, Clone)]
 enum Spec {
-    Default, Hex, HexUpper, Binary, Octal,
-    HexAlt, HexUpperAlt, BinaryAlt, OctalAlt,
+    Default,
+    Hex,
+    HexUpper,
+    Binary,
+    Octal,
+    HexAlt,
+    HexUpperAlt,
+    BinaryAlt,
+    OctalAlt,
+}
+
+impl Spec {
+    fn params(self) -> (u32, bool, &'static str) {
+        match self {
+            Spec::Default      => (10, false, ""),
+            Spec::Hex          => (16, false, ""),
+            Spec::HexUpper     => (16, true,  ""),
+            Spec::Binary       => ( 2, false, ""),
+            Spec::Octal        => ( 8, false, ""),
+            Spec::HexAlt       => (16, false, "0x"),
+            Spec::HexUpperAlt  => (16, true,  "0X"),
+            Spec::BinaryAlt    => ( 2, false, "0b"),
+            Spec::OctalAlt     => ( 8, false, "0o"),
+        }
+    }
 }
 
 fn u32_to_base(mut val: u32, base: u32, uppercase: bool, buf: &mut [u8; ITOA_BUF_SIZE]) -> usize {
-    let ptr = buf.as_mut_ptr();
     if val == 0 {
-        unsafe { *ptr.add(ITOA_BUF_SIZE - 1) = b'0'; }
+        unsafe { *buf.get_unchecked_mut(ITOA_BUF_SIZE - 1) = b'0'; }
         return ITOA_BUF_SIZE - 1;
     }
     let mut i = ITOA_BUF_SIZE;
     while val > 0 {
         i -= 1;
         let digit = (val % base) as u8;
-        let c = if digit < 10 {
-            b'0' + digit
-        } else if uppercase {
-            b'A' + (digit - 10)
-        } else {
-            b'a' + (digit - 10)
-        };
-        unsafe { *ptr.add(i) = c; }
+        unsafe {
+            *buf.get_unchecked_mut(i) = if digit < 10 {
+                b'0' + digit
+            } else if uppercase {
+                b'A' + (digit - 10)
+            } else {
+                b'a' + (digit - 10)
+            };
+        }
         val /= base;
     }
     i
 }
 
-fn write_buf(buf: &[u8; ITOA_BUF_SIZE], start: usize, sink: Sink) {
-    let ptr = buf.as_ptr();
+fn emit_buf(buf: &[u8; ITOA_BUF_SIZE], start: usize, sink: Sink) {
     let mut i = start;
     while i < ITOA_BUF_SIZE {
-        unsafe { emit_char(*ptr.add(i), sink); }
+        emit_raw(unsafe { *buf.get_unchecked(i) }, sink);
         i += 1;
     }
 }
 
 fn write_u32(val: u32, spec: Spec, sink: Sink) {
-    let mut buf = [0u8; ITOA_BUF_SIZE];
-    match spec {
-        Spec::Default => {
-            let s = u32_to_base(val, 10, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::Hex => {
-            let s = u32_to_base(val, 16, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::HexUpper => {
-            let s = u32_to_base(val, 16, true, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::Binary => {
-            let s = u32_to_base(val, 2, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::Octal => {
-            let s = u32_to_base(val, 8, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::HexAlt => {
-            emit_str("0x", sink);
-            let s = u32_to_base(val, 16, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::HexUpperAlt => {
-            emit_str("0X", sink);
-            let s = u32_to_base(val, 16, true, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::BinaryAlt => {
-            emit_str("0b", sink);
-            let s = u32_to_base(val, 2, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
-        Spec::OctalAlt => {
-            emit_str("0o", sink);
-            let s = u32_to_base(val, 8, false, &mut buf);
-            write_buf(&buf, s, sink);
-        }
+    let (base, uppercase, prefix) = spec.params();
+    if !prefix.is_empty() {
+        emit_str(prefix, sink);
     }
+    let mut buf = [0u8; ITOA_BUF_SIZE];
+    let start = u32_to_base(val, base, uppercase, &mut buf);
+    emit_buf(&buf, start, sink);
 }
 
 fn write_i32(val: i32, spec: Spec, sink: Sink) {
     if val < 0 {
-        emit_char(b'-', sink);
-        write_u32((!(val as u32)).wrapping_add(1), spec, sink);
+        emit_raw(b'-', sink);
+        write_u32(val.wrapping_neg() as u32, spec, sink);
     } else {
         write_u32(val as u32, spec, sink);
     }
@@ -205,7 +222,7 @@ fn write_arg(arg: &PrintArg, spec: Spec, sink: Sink) {
     match arg {
         PrintArg::Str(s)    => emit_str(s, sink),
         PrintArg::Bytes(b)  => emit_bytes(b, sink),
-        PrintArg::Char(c)   => emit_char(*c, sink),
+        PrintArg::Char(c)   => emit_raw(*c, sink),
         PrintArg::I32(v)    => write_i32(*v, spec, sink),
         PrintArg::U32(v)    => write_u32(*v, spec, sink),
         PrintArg::Usize(v)  => write_u32(*v as u32, spec, sink),
@@ -213,59 +230,71 @@ fn write_arg(arg: &PrintArg, spec: Spec, sink: Sink) {
     }
 }
 
-fn parse_spec(bytes: *const u8, start: usize, end: usize) -> Spec {
+fn parse_spec(fmt: &[u8], start: usize, end: usize) -> Spec {
     let len = end - start;
-    if len == 0 { return Spec::Default; }
-    unsafe {
-        if *bytes.add(start) != b':' { return Spec::Default; }
-        if len == 2 {
-            return match *bytes.add(start + 1) {
-                b'x' => Spec::Hex,    b'X' => Spec::HexUpper,
-                b'b' => Spec::Binary, b'o' => Spec::Octal,
-                _ => Spec::Default,
-            };
-        }
-        if len == 3 && *bytes.add(start + 1) == b'#' {
-            return match *bytes.add(start + 2) {
-                b'x' => Spec::HexAlt,    b'X' => Spec::HexUpperAlt,
-                b'b' => Spec::BinaryAlt, b'o' => Spec::OctalAlt,
-                _ => Spec::Default,
-            };
-        }
+    if len == 0 {
+        return Spec::Default;
+    }
+    if unsafe { *fmt.get_unchecked(start) } != b':' {
+        return Spec::Default;
+    }
+    if len == 2 {
+        return match unsafe { *fmt.get_unchecked(start + 1) } {
+            b'x' => Spec::Hex,
+            b'X' => Spec::HexUpper,
+            b'b' => Spec::Binary,
+            b'o' => Spec::Octal,
+            _ => Spec::Default,
+        };
+    }
+    if len == 3 && unsafe { *fmt.get_unchecked(start + 1) } == b'#' {
+        return match unsafe { *fmt.get_unchecked(start + 2) } {
+            b'x' => Spec::HexAlt,
+            b'X' => Spec::HexUpperAlt,
+            b'b' => Spec::BinaryAlt,
+            b'o' => Spec::OctalAlt,
+            _ => Spec::Default,
+        };
     }
     Spec::Default
 }
 
-/// Core print engine — parses format string at runtime like C's printf.
+/// Core print engine — parses format string and emits to the selected sink(s).
 fn format(fmt: &str, args: &[PrintArg], sink: Sink) {
-    let bytes = fmt.as_ptr();
-    let len = fmt.len();
-    let args_ptr = args.as_ptr();
-    let args_len = args.len();
+    let bytes = fmt.as_bytes();
+    let len = bytes.len();
     let mut i: usize = 0;
     let mut arg_idx: usize = 0;
 
     while i < len {
-        let ch = unsafe { *bytes.add(i) };
+        let ch = unsafe { *bytes.get_unchecked(i) };
 
         if ch == b'{' {
-            if i + 1 < len && unsafe { *bytes.add(i + 1) } == b'{' {
-                emit_char(b'{', sink); i += 2; continue;
+            if i + 1 < len && unsafe { *bytes.get_unchecked(i + 1) } == b'{' {
+                emit_raw(b'{', sink);
+                i += 2;
+                continue;
             }
             let spec_start = i + 1;
             let mut j = spec_start;
-            while j < len && unsafe { *bytes.add(j) } != b'}' { j += 1; }
+            while j < len && unsafe { *bytes.get_unchecked(j) } != b'}' {
+                j += 1;
+            }
             let spec = parse_spec(bytes, spec_start, j);
-            if arg_idx < args_len {
-                write_arg(unsafe { &*args_ptr.add(arg_idx) }, spec, sink);
+            if arg_idx < args.len() {
+                write_arg(unsafe { args.get_unchecked(arg_idx) }, spec, sink);
                 arg_idx += 1;
             }
-            i = j + 1; continue;
+            i = j + 1;
+            continue;
         }
-        if ch == b'}' && i + 1 < len && unsafe { *bytes.add(i + 1) } == b'}' {
-            emit_char(b'}', sink); i += 2; continue;
+        if ch == b'}' && i + 1 < len && unsafe { *bytes.get_unchecked(i + 1) } == b'}' {
+            emit_raw(b'}', sink);
+            i += 2;
+            continue;
         }
-        emit_char(ch, sink);
+        // Regular character — needs control-char interpretation (\n, \t, etc.)
+        emit_byte(ch, sink);
         i += 1;
     }
 }
@@ -274,12 +303,17 @@ fn format(fmt: &str, args: &[PrintArg], sink: Sink) {
 //  Public entry points
 // ──────────────────────────────────────────────
 
-/// Writes formatted output to the VGA display.
+/// Writes formatted output to VGA display only (user-facing output).
 pub fn write_display(fmt: &str, args: &[PrintArg]) {
     format(fmt, args, Sink::Display);
 }
 
-/// Writes formatted output to the kernel log ring buffer.
+/// Writes formatted output to kernel log ring buffer only (no screen output).
 pub fn write_klog(fmt: &str, args: &[PrintArg]) {
     format(fmt, args, Sink::Klog);
+}
+
+/// Writes formatted output to both VGA display and kernel log ring buffer.
+pub fn write_kernel(fmt: &str, args: &[PrintArg]) {
+    format(fmt, args, Sink::Kernel);
 }

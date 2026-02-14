@@ -1,4 +1,11 @@
-use crate::drivers::vga::{draw_char_at, DEFAULT_COLOR, VGA_HEIGHT, VGA_WIDTH, scroll_buffer_up, update_cursor};
+/// VGA display layer.
+///
+/// Three abstraction levels:
+///   - `put_char_at` — write at fixed position, no cursor move
+///   - `put_char`    — write at cursor, advance
+///   - `put_str`     — interpret control characters
+
+use crate::drivers::vga;
 
 /// Number of spaces per tab stop.
 pub const TAB_SIZE: usize = 8;
@@ -10,41 +17,41 @@ pub const TAB_SIZE: usize = 8;
 static mut CURSOR_X: usize = 0;
 static mut CURSOR_Y: usize = 0;
 
-/// Returns the current cursor position as a tuple (x, y).
+/// Returns the current cursor position as `(x, y)`.
 pub fn get_pos() -> (usize, usize) {
     unsafe { (CURSOR_X, CURSOR_Y) }
 }
 
-/// Sets the cursor position to the specified coordinates.
+/// Sets the cursor position and syncs hardware.
 pub fn set_pos(x: usize, y: usize) {
     unsafe {
         CURSOR_X = x;
         CURSOR_Y = y;
-        update_cursor(CURSOR_X, CURSOR_Y);
+        vga::update_cursor(CURSOR_X, CURSOR_Y);
     }
 }
 
-/// Moves the cursor one position to the left, wrapping to the previous line if needed.
+/// Moves cursor left, wrapping to previous line.
 pub fn move_left() {
     unsafe {
         if CURSOR_X > 0 {
             CURSOR_X -= 1;
         } else if CURSOR_Y > 0 {
             CURSOR_Y -= 1;
-            CURSOR_X = VGA_WIDTH - 1;
+            CURSOR_X = vga::VGA_WIDTH - 1;
         }
     }
     sync_cursor();
 }
 
-/// Moves the cursor one position to the right, wrapping/scrolling if needed.
+/// Moves cursor right, wrapping and scrolling.
 pub fn move_right() {
     unsafe {
         CURSOR_X += 1;
-        if CURSOR_X >= VGA_WIDTH {
+        if CURSOR_X >= vga::VGA_WIDTH {
             CURSOR_X = 0;
-            if CURSOR_Y + 1 >= VGA_HEIGHT {
-                scroll_buffer_up();
+            if CURSOR_Y + 1 >= vga::VGA_HEIGHT {
+                vga::scroll_buffer_up();
             } else {
                 CURSOR_Y += 1;
             }
@@ -53,12 +60,12 @@ pub fn move_right() {
     sync_cursor();
 }
 
-/// Moves the cursor to the beginning of the next line, scrolling if needed.
+/// Advances cursor to next line, scrolling if needed.
 pub fn new_line() {
     unsafe {
         CURSOR_X = 0;
-        if CURSOR_Y + 1 >= VGA_HEIGHT {
-            scroll_buffer_up();
+        if CURSOR_Y + 1 >= vga::VGA_HEIGHT {
+            vga::scroll_buffer_up();
         } else {
             CURSOR_Y += 1;
         }
@@ -66,109 +73,93 @@ pub fn new_line() {
     sync_cursor();
 }
 
-/// Synchronizes the software cursor position with the VGA hardware cursor.
+// Syncs software cursor with VGA hardware.
 fn sync_cursor() {
     let (x, y) = get_pos();
-    update_cursor(x, y);
+    vga::update_cursor(x, y);
 }
 
 // ──────────────────────────────────────────────
-//  Low-level drawing (no cursor movement)
-//
-//  These paint pixels to VGA memory without touching the cursor.
-//  Only used internally and by io_manager for input-line redraw.
+//  Character output — no control-char handling
 // ──────────────────────────────────────────────
 
-/// Draws a character at a fixed VGA position (no cursor movement).
-/// Used internally by `redraw_input_line` for in-place input editing.
-fn draw_at(c: u8, x: usize, y: usize) {
-    draw_char_at(x, y, c, DEFAULT_COLOR);
-}
-
-// ──────────────────────────────────────────────
-//  High-level write API (cursor-advancing)
-//
-//  These are the primary functions the rest of the kernel should use
-//  to write text to the screen. They draw AND advance the cursor.
-// ──────────────────────────────────────────────
-
-/// Writes a single byte to the screen, advancing the cursor.
-/// Interprets `\n`, `\t`, vertical tab (0x0B), and bell (0x07).
+/// Writes a byte at the cursor and advances. Default color.
+#[inline]
 pub fn put_char(c: u8) {
-    put_colored_char(c, DEFAULT_COLOR);
+    let (x, y) = get_pos();
+    put_char_at(x, y, c);
+    move_right();
 }
 
-/// Writes a single byte to the screen with a specific color, advancing the cursor.
-/// Interprets `\n`, `\t`, vertical tab (0x0B), and bell (0x07).
-pub fn put_colored_char(c: u8, color: u8) {
+/// Writes a byte at the cursor and advances. Custom color.
+#[inline]
+pub fn put_char_colored(c: u8, color: u8) {
+    let (x, y) = get_pos();
+    put_char_at_colored(x, y, c, color);
+    move_right();
+}
+
+/// Writes a byte at `(x, y)`. No cursor move. Default color.
+#[inline]
+pub fn put_char_at(x: usize, y: usize, c: u8) {
+    vga::draw_char_at(x, y, c, vga::DEFAULT_COLOR);
+}
+
+/// Writes a byte at `(x, y)`. No cursor move. Custom color.
+#[inline]
+pub fn put_char_at_colored(x: usize, y: usize, c: u8, color: u8) {
+    vga::draw_char_at(x, y, c, color);
+}
+
+// ──────────────────────────────────────────────
+//  String output — with control-char handling
+//
+//  Interprets: \n, \t, \x08 (backspace),
+//              \x07 (bell), \x0B (vertical tab)
+// ──────────────────────────────────────────────
+
+/// Writes a string, interpreting control characters.
+pub fn put_str(s: &str) {
+    put_str_colored(s, vga::DEFAULT_COLOR);
+}
+
+/// Writes a byte slice, interpreting control characters.
+pub fn put_bytes(bytes: &[u8]) {
+    for &b in bytes {
+        write_byte(b, vga::DEFAULT_COLOR);
+    }
+}
+
+/// Writes a string with custom color, interpreting controls.
+pub fn put_str_colored(s: &str, color: u8) {
+    for &b in s.as_bytes() {
+        write_byte(b, color);
+    }
+}
+
+/// Dispatches a byte: handles control chars, forwards
+/// printable characters to `put_char_colored`.
+pub fn write_byte(c: u8, color: u8) {
     match c {
-        0x07 => {} // bell: no visible output
-        b'\n' => new_line(),
-        0x0B => {
-            // vertical tab: move cursor down, keep column
+        0x07 => {}                                          // bell (ignored)
+        b'\n' => new_line(),                                // new_line
+        0x08 => move_left(),                                // backspace
+        0x0B => {                                           // vertical tab
             let (x, y) = get_pos();
-            if y + 1 >= VGA_HEIGHT {
-                scroll_buffer_up();
+            if y + 1 >= vga::VGA_HEIGHT {
+                vga::scroll_buffer_up();
                 set_pos(x, y);
             } else {
                 set_pos(x, y + 1);
             }
         }
-        b'\t' => {
+        b'\t' => {                                          // tab
             let (x, _) = get_pos();
             let spaces = TAB_SIZE - (x % TAB_SIZE);
-            let mut s = 0;
-            while s < spaces {
-                let (cx, cy) = get_pos();
-                draw_char_at(cx, cy, b' ', color);
-                move_right();
-                s += 1;
+            for _ in 0..spaces {
+                put_char_colored(b' ', color);
             }
         }
-        _ => {
-            let (x, y) = get_pos();
-            draw_char_at(x, y, c, color);
-            move_right();
-        }
-    }
-}
-
-/// Writes a string slice to the screen, advancing the cursor.
-pub fn put_str(s: &str) {
-    for &b in s.as_bytes() {
-        put_char(b);
-    }
-}
-
-/// Writes a byte slice to the screen, advancing the cursor.
-pub fn put_bytes(bytes: &[u8]) {
-    for &b in bytes {
-        put_char(b);
-    }
-}
-
-/// Writes a string slice to the screen with a specific color, advancing the cursor.
-pub fn put_colored_str(s: &str, color: u8) {
-    for &b in s.as_bytes() {
-        put_colored_char(b, color);
-    }
-}
-
-// ──────────────────────────────────────────────
-//  Input-line redraw (used by io_manager)
-//
-//  Redraws part of the input buffer at a fixed row without
-//  moving the logical cursor. This is needed for insert/delete
-//  in the middle of the input line.
-// ──────────────────────────────────────────────
-
-/// Redraws (part of) the input buffer on a single VGA row without moving the cursor.
-/// `start_pos`..`len` are redrawn; `clear_tail_len` trailing cells are blanked.
-pub fn redraw_input_line(buffer: &[u8], len: usize, start_pos: usize, cursor_y: usize, clear_tail_len: usize, input_offset: usize) {
-    for i in start_pos..len.min(buffer.len()) {
-        draw_at(buffer[i], i + input_offset, cursor_y);
-    }
-    for i in 0..clear_tail_len {
-        draw_at(b' ', len + i + input_offset, cursor_y);
+        _ => put_char_colored(c, color),                    // printable
     }
 }

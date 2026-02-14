@@ -26,7 +26,7 @@ static mut TOTAL: usize = 0; // Total bytes ever written (to detect wrap-around)
 #[inline]
 pub fn log_byte(c: u8) {
     unsafe {
-        *BUF.as_mut_ptr().add(HEAD) = c;
+        *BUF.get_unchecked_mut(HEAD) = c;
         HEAD += 1;
         if HEAD >= KLOG_BUF_SIZE {
             HEAD = 0;
@@ -37,27 +37,15 @@ pub fn log_byte(c: u8) {
 
 /// Append a string slice to the kernel log buffer.
 pub fn log_str(s: &str) {
-    let ptr = s.as_ptr();
-    let len = s.len();
-    let mut i: usize = 0;
-    while i < len {
-        unsafe {
-            log_byte(*ptr.add(i));
-        }
-        i += 1;
+    for &b in s.as_bytes() {
+        log_byte(b);
     }
 }
 
 /// Append a byte slice to the kernel log buffer.
 pub fn log_bytes(bytes: &[u8]) {
-    let ptr = bytes.as_ptr();
-    let len = bytes.len();
-    let mut i: usize = 0;
-    while i < len {
-        unsafe {
-            log_byte(*ptr.add(i));
-        }
-        i += 1;
+    for &b in bytes {
+        log_byte(b);
     }
 }
 
@@ -72,19 +60,16 @@ pub fn log_bytes(bytes: &[u8]) {
 pub fn dump() {
     unsafe {
         if TOTAL <= KLOG_BUF_SIZE {
-            // No wrap — everything is in BUF[0..HEAD]
-            let mut i: usize = 0;
-            while i < HEAD {
-                display::put_char(*BUF.as_ptr().add(i));
-                i += 1;
+            for i in 0..HEAD {
+                let c = *BUF.get_unchecked(i);
+                display::write_byte(c, crate::drivers::vga::DEFAULT_COLOR);
             }
         } else {
             // Wrapped — oldest byte is at HEAD, read the full ring
-            let mut i: usize = 0;
-            while i < KLOG_BUF_SIZE {
+            for i in 0..KLOG_BUF_SIZE {
                 let idx = (HEAD + i) % KLOG_BUF_SIZE;
-                display::put_char(*BUF.as_ptr().add(idx));
-                i += 1;
+                let c = *BUF.get_unchecked(idx);
+                display::write_byte(c, crate::drivers::vga::DEFAULT_COLOR);
             }
         }
     }

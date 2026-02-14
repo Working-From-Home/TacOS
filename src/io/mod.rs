@@ -1,4 +1,3 @@
-pub mod console;
 pub mod display;
 pub mod print_engine;
 pub mod input_buffer;
