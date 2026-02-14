@@ -6,6 +6,7 @@
 ///   {:X}  — hexadecimal uppercase       {:#X} — with "0X" prefix
 ///   {:b}  — binary                      {:#b} — with "0b" prefix
 ///   {:o}  — octal                       {:#o} — with "0o" prefix
+///   {:p}  — pointer (hex with "0x" prefix)
 ///   {{    — literal '{'
 ///   }}    — literal '}'
 
@@ -60,6 +61,7 @@ pub enum PrintArg<'a> {
     U32(u32),
     Usize(usize),
     Bool(bool),
+    Ptr(*const u32),
 }
 
 impl<'a> From<&'a str> for PrintArg<'a> {
@@ -94,6 +96,9 @@ impl<'a> From<bool> for PrintArg<'a> {
 }
 impl<'a> From<char> for PrintArg<'a> {
     fn from(v: char) -> Self { PrintArg::Char(v as u8) }
+}
+impl<'a> From<&u32> for PrintArg<'a> {
+    fn from(v: &u32) -> Self { PrintArg::Ptr(v) }
 }
 
 // ──────────────────────────────────────────────
@@ -146,6 +151,7 @@ enum Spec {
     HexUpperAlt,
     BinaryAlt,
     OctalAlt,
+    Ptr,
 }
 
 impl Spec {
@@ -160,6 +166,7 @@ impl Spec {
             Spec::HexUpperAlt  => (16, true,  "0X"),
             Spec::BinaryAlt    => ( 2, false, "0b"),
             Spec::OctalAlt     => ( 8, false, "0o"),
+            Spec::Ptr          => (16, false, "0x"),
         }
     }
 }
@@ -227,6 +234,7 @@ fn write_arg(arg: &PrintArg, spec: Spec, sink: Sink) {
         PrintArg::U32(v)    => write_u32(*v, spec, sink),
         PrintArg::Usize(v)  => write_u32(*v as u32, spec, sink),
         PrintArg::Bool(v)   => emit_str(if *v { "true" } else { "false" }, sink),
+        PrintArg::Ptr(v) => write_u32(*v as u32, spec, sink),
     }
 }
 
@@ -244,6 +252,7 @@ fn parse_spec(fmt: &[u8], start: usize, end: usize) -> Spec {
             b'X' => Spec::HexUpper,
             b'b' => Spec::Binary,
             b'o' => Spec::Octal,
+            b'p' => Spec::Ptr,
             _ => Spec::Default,
         };
     }

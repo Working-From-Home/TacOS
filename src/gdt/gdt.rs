@@ -56,7 +56,7 @@
 ///     0x30: User Stack
 
 use core::arch::asm;
-use crate::println;
+use crate::{printkln, println};
 
 /// -----------------------
 /// GDT Constants
@@ -159,6 +159,8 @@ impl GdtEntry {
 /// Creates 7 segment descriptors, copies them to physical address 0x00000800,
 /// and reloads the GDTR and segment registers.
 pub fn init() {
+    printkln!("Initializing GDT...");
+    
     let gdt: [GdtEntry; GDT_ENTRIES] = [
         GdtEntry::null(),
         GdtEntry::new(0x00000000, 0xFFFFF, KERNEL_CODE_ACCESS, FLAGS_32BIT_4K),
@@ -188,6 +190,8 @@ pub fn init() {
     unsafe {
         load_gdt(&gdt_ptr);
     }
+
+    printkln!("GDT initialized successfully.");
 }
 
 /// Loads the GDT into the CPU and reloads all segment registers.

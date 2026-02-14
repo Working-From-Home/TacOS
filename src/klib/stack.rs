@@ -18,7 +18,7 @@ const MAX_FRAMES: usize = 20;
 
 /// Reads the current EBP register value.
 #[inline(always)]
-fn get_ebp() -> u32 {
+pub fn get_ebp() -> u32 {
     let ebp: u32;
     unsafe {
         asm!("mov {}, ebp", out(reg) ebp);

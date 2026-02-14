@@ -7,6 +7,7 @@ use crate::{print, println, printk, printkln};
 use core::arch::asm;
 
 pub fn run() -> ! {
+    printkln!("Entering shell...");
     console::show_welcome_message();
     console::show_prompt();
 
@@ -31,7 +32,7 @@ static COMMANDS: &[Command] = &[
     Command { name: b"shutdown", handler: |_| shutdown() },
     Command { name: b"halt",     handler: |_| shutdown() },
     Command { name: b"reboot",   handler: |_| reboot() },
-    Command { name: b"printk",   handler: |_| printk_test() },
+    Command { name: b"format_test",   handler: |_| format_test() },
     Command { name: b"stack",    handler: |_| crate::klib::stack::print_stack() },
     Command { name: b"stack_test",    handler: |_| stack_test() },
     Command { name: b"gdt",      handler: |_| crate::gdt::print_gdt() },
@@ -206,29 +207,30 @@ fn tacos() {
     }
 }
 
-fn printk_test() {
-    printkln!("=== printk test ===");
-    printkln!("String: {}", "Hello from TacOS");
-    printkln!("Integer: {}", 42);
-    printkln!("Negative: {}", -1_i32);
-    printkln!("Hex lower: {:x}", 255_u32);
-    printkln!("Hex upper: {:X}", 255_u32);
-    printkln!("Hex alt of {} : {:#x}", 0xDEAD_u32, 0xDEAD_u32);
-    printkln!("Binary of {} : {:b}", 42_u32, 42_u32);
-    printkln!("Binary alt of {} : {:#b}", 10_u32, 10_u32);
-    printkln!("Octal of {} : {:o}", 42_u32, 42_u32);
-    printkln!("Octal alt of {} : {:#o}", 42_u32, 42_u32);
-    printkln!("Bool: {} {}", true, false);
-    printkln!("Multi: {} + {} = {}", 1, 2, 3);
-    printk!("No newline...");
-    printkln!(" done!");
-    printkln!("Literal braces: {{}}");
-    printk!("Two new lines...\n\nDone!\n");
-    printkln!("=== end test ===");
-    printkln!();
-    println!("printk test done! Use `dmesg` to see the output.");
+/// A test function to demonstrate the formatting capabilities of `println!`.
+fn format_test() {
+    println!("=== format test ===");
+    println!("String: {}", "Hello from TacOS");
+    println!("Integer: {}", 42);
+    println!("Negative: {}", -1_i32);
+    println!("Hex lower: {:x}", 255_u32);
+    println!("Hex upper: {:X}", 255_u32);
+    println!("Hex alt of {} : {:#x}", 0xDEAD_u32, 0xDEAD_u32);
+    println!("Binary of {} : {:b}", 42_u32, 42_u32);
+    println!("Binary alt of {} : {:#b}", 10_u32, 10_u32);
+    println!("Octal of {} : {:o}", 42_u32, 42_u32);
+    println!("Octal alt of {} : {:#o}", 42_u32, 42_u32);
+    println!("Bool: {} {}", true, false);
+    println!("Multi: {} + {} = {}", 1, 2, 3);
+    print!("No newline...");
+    println!(" done!");
+    println!("Literal braces: {{}}");
+    print!("Two new lines...\n\nDone!\n");
+    println!("=== end test ===");
+    println!();
 }
 
+/// A test function to demonstrate the kernel stack trace functionality.
 fn stack_test() {
     #[inline(never)]
     fn recursive(n: u32) {
@@ -236,6 +238,8 @@ fn stack_test() {
             crate::klib::stack::print_stack();
         } else {
             recursive(n - 1);
+            let ebp = crate::klib::stack::get_ebp();
+            printkln!("Current stack frame: {:#x}, returning from recursion level {}", ebp, n - 1);
             // Prevent tail-call optimization: force the compiler to keep the frame alive
             unsafe {
                 core::arch::asm!("", options(nomem, nostack));

@@ -10,4 +10,9 @@
 	"rust-analyzer.cargo.target": "target-specs/i686-custom.json",
 	"rust-analyzer.cargo.buildScripts.enable": true,
 	"rust-analyzer.check.allTargets": false,
+	"cSpell.words": [
+		"outb",
+		"printk",
+		"printkln"
+	],
 }
