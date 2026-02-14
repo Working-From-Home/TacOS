@@ -2,8 +2,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-
-use tacos::{io::print, printkln, println};
+use tacos::printkln;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

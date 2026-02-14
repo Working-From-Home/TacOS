@@ -26,7 +26,8 @@ static mut TOTAL: usize = 0; // Total bytes ever written (to detect wrap-around)
 #[inline]
 pub fn log_byte(c: u8) {
     unsafe {
-        *BUF.get_unchecked_mut(HEAD) = c;
+        let buf_ptr = core::ptr::addr_of_mut!(BUF);
+        *(*buf_ptr).get_unchecked_mut(HEAD) = c;
         HEAD += 1;
         if HEAD >= KLOG_BUF_SIZE {
             HEAD = 0;
@@ -59,16 +60,17 @@ pub fn log_bytes(bytes: &[u8]) {
 /// If it has wrapped, we print from the oldest data (`HEAD`) forward through the ring, covering `KLOG_BUF_SIZE` bytes.
 pub fn dump() {
     unsafe {
+        let buf_ptr = core::ptr::addr_of!(BUF);
         if TOTAL <= KLOG_BUF_SIZE {
             for i in 0..HEAD {
-                let c = *BUF.get_unchecked(i);
+                let c = *(*buf_ptr).get_unchecked(i);
                 display::write_byte(c, crate::drivers::vga::DEFAULT_COLOR);
             }
         } else {
             // Wrapped — oldest byte is at HEAD, read the full ring
             for i in 0..KLOG_BUF_SIZE {
                 let idx = (HEAD + i) % KLOG_BUF_SIZE;
-                let c = *BUF.get_unchecked(idx);
+                let c = *(*buf_ptr).get_unchecked(idx);
                 display::write_byte(c, crate::drivers::vga::DEFAULT_COLOR);
             }
         }

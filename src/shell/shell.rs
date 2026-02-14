@@ -3,7 +3,7 @@ use crate::drivers::port::outb;
 use crate::io::io_manager;
 use crate::shell::console;
 use crate::shell::builtin;
-use crate::{print, println, printk, printkln};
+use crate::{print, println, printkln};
 use core::arch::asm;
 
 pub fn run() -> ! {
@@ -98,8 +98,10 @@ static mut ARGV: [&'static [u8]; MAX_ARGS] = [&[]; MAX_ARGS];
 /// Parses input into argv-style array.
 /// Returns slice of argument slices where argv[0] is command, argv[1..] are args.
 fn parse_input(input: &[u8]) -> &'static [&'static [u8]] {
-    let buf = unsafe { &mut PARSE_BUF };
-    let argv = unsafe { &mut ARGV };
+    let buf_ptr = core::ptr::addr_of_mut!(PARSE_BUF);
+    let argv_ptr = core::ptr::addr_of_mut!(ARGV);
+    let buf = unsafe { &mut *buf_ptr };
+    let argv = unsafe { &mut *argv_ptr };
 
     let mut out: usize = 0; // Position in PARSE_BUF
     let mut argc: usize = 0; // Number of arguments
@@ -124,12 +126,12 @@ fn parse_input(input: &[u8]) -> &'static [&'static [u8]] {
             i = parse_token(input, i, buf, &mut out);
 
             // Store this argument
-            argv[argc] = unsafe { PARSE_BUF.get_unchecked(start..out) };
+            argv[argc] = unsafe { (*buf_ptr).get_unchecked(start..out) };
             argc += 1;
         }
     }
 
-    unsafe { ARGV.get_unchecked(..argc) }
+    unsafe { (*argv_ptr).get_unchecked(..argc) }
 }
 
 /// Parses a single token from `input[i..]` into `buf[*out..]`.
