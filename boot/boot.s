@@ -3,14 +3,14 @@
 .section .multiboot
 .align 4
 .long 0x1BADB002         # Magic Multiboot
-.long 0x0                # Flags (0 = rien demandé)
+.long 0x0                # Flags (0 = nothing to do)
 .long -(0x1BADB002)      # Checksum
 
 .section .text
 .align 4
 _start:
     mov $stack_top, %esp   # Setup stack
-    call rust_main         # Appelle ta fonction Rust
+    call rust_main         # Call rust function
 
 halt:
     cli
